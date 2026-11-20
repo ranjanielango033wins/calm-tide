@@ -215,7 +215,7 @@
 
   <nav class="tabs" role="tablist">
     <button id="tabBtnCalm" class="on" role="tab">🌊 Calm</button>
-    <button id="tabBtnMusic" role="tab">🎵 Music <span id="musicCount"></span></button>
+    <button id="tabBtnMusic" role="tab">🎵 Music</button>
   </nav>
 
   <div id="tabCalm">
@@ -1149,7 +1149,6 @@ let renaming = false;
 function renderLib(){
   if(renaming) return;   // don't redraw while you are typing a new name
   const ul = $('#libList'); ul.innerHTML = '';
-  $('#musicCount').textContent = lib.length ? '(' + lib.length + ')' : '';
   if(!lib.length){ ul.innerHTML = '<li class="empty">No songs yet. Tap "Add songs" to add your first one.</li>'; return; }
   lib.forEach((t, i) => {
     const li = document.createElement('li'); if(curTrack && curTrack.id === t.id) li.className = 'playing';
@@ -1594,7 +1593,7 @@ $('#newAff').addEventListener('keydown', e => { if(e.key === 'Enter') addCustom(
 show(); renderLists(); updateTimer();
 
 /* ---------- Cloud sync: keeps the installed app the same as the website ---------- */
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.8.1';
 const APP_URL = 'https://ranjanielango033wins.github.io/calm-tide/';
 let latestVersion = null;
 function syncState(cls, label, note){
