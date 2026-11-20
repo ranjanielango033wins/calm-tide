@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="Calm Tide">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Nunito:wght@400;600;700&family=Noto+Serif+Devanagari:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --ink:#eaf6f8; --muted:#a3c3d0; --accent:#7fd6d0; --accent-ink:#05323b;
@@ -30,6 +30,17 @@
     background:linear-gradient(180deg,#06132a 0%,#0b2748 40%,#0f4a66 75%,#13627a 100%);
   }
   .wrap{max-width:860px;margin:0 auto;padding:28px 18px 70px}
+  .cols{display:block}
+  @media (min-width:1100px){
+    .wrap{max-width:1320px}
+    .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,460px);gap:22px;align-items:start}
+    .side{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto;border-radius:22px}
+    .side .card{margin-top:18px}
+    .side .mrow{flex-wrap:wrap;overflow:visible}
+    .side .mchip{min-width:0;max-width:none;flex:1 1 180px;padding:9px 12px}
+  }
+  .listen{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink);border:1px solid #f6c9a8;background:rgba(246,201,168,.12);border-radius:999px;padding:9px 14px;font-size:14px}
+  .listen:hover{background:rgba(246,201,168,.25)}
   header{text-align:center;padding:10px 0 4px}
   header h1{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:clamp(34px,6vw,48px);margin:0;letter-spacing:.5px}
   header p{color:var(--muted);margin:6px 0 0}
@@ -76,6 +87,18 @@
   #nVoice{flex:1;min-width:0}
   .bar{height:8px;border-radius:99px;background:rgba(255,255,255,.12);margin-top:12px;overflow:hidden}
   .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+  .mrow{display:flex;gap:10px;overflow-x:auto;padding:12px 2px 6px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+  .mrow::-webkit-scrollbar{height:6px}.mrow::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:9px}
+  .mchip{flex:0 0 auto;scroll-snap-align:start;min-width:150px;max-width:190px;text-align:left;border-radius:16px;padding:12px 14px;white-space:normal}
+  .mchip b{display:block;font-size:15px;margin-bottom:2px}
+  .mchip span{display:block;font-size:12.5px;color:var(--muted);line-height:1.35}
+  .mchip.on{background:rgba(246,201,168,.18);border-color:#f6c9a8}
+  .mview{margin-top:10px;padding:16px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(135deg,rgba(246,201,168,.10),rgba(127,214,208,.06))}
+  .m-dev{font-family:'Noto Serif Devanagari',serif;font-size:clamp(22px,4.6vw,30px);font-weight:600;text-align:center;line-height:1.6;margin:4px 0 8px;color:#fff3e6}
+  .m-tr{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:clamp(19px,3.8vw,23px);text-align:center;line-height:1.4}
+  .m-mean{text-align:center;color:var(--muted);font-size:14px;margin:10px 0 14px;line-height:1.5}
+  .m-count{text-align:center;font-size:15px;margin-top:10px;color:#f6c9a8;min-height:1.3em;font-weight:600}
+  #mCount{border-radius:999px;padding:9px 12px}
   .install-help{max-width:520px;margin:12px auto 0;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.07);text-align:left;font-size:14px;line-height:1.6}
   .tip{font-size:13px;color:var(--muted);margin:12px 0 0;line-height:1.5}
   .settings{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
@@ -142,6 +165,8 @@
     <div class="install-help" id="installHelp" hidden></div>
   </header>
 
+  <div class="cols">
+  <div class="main">
   <!-- Today's affirmation -->
   <section class="card">
     <h2>Today's affirmation</h2>
@@ -245,6 +270,53 @@
     <ul class="list" id="favList"></ul>
   </section>
 
+  </div>
+  <aside class="side">
+  <!-- Hindu mantras -->
+  <section class="card" id="mantras">
+    <h2>🕉️ Hindu mantras</h2>
+    <p class="sub">Tap a mantra to open it, then chant along. Choose how many times it repeats.</p>
+    <div class="mview">
+      <div class="m-dev" id="mDev"></div>
+      <div class="m-tr" id="mTr"></div>
+      <div class="m-mean" id="mMean"></div>
+      <div class="row">
+        <button class="primary" id="mPlay">▶ Chant</button>
+        <select id="mCount" aria-label="How many times">
+          <option value="1">1 time</option>
+          <option value="3" selected>3 times</option>
+          <option value="9">9 times</option>
+          <option value="11">11 times</option>
+          <option value="21">21 times</option>
+          <option value="108">108 times (one mala)</option>
+        </select>
+        <button id="mStop" disabled>■ Stop</button>
+        <button id="mDrone">🪔 Tanpura drone</button>
+      </div>
+      <div class="m-count" id="mCounter"></div>
+      <div class="settings">
+        <div>
+          <label for="mVoice">Mantra voice</label>
+          <select id="mVoice"><option value="__en">English pronunciation</option></select>
+        </div>
+        <div>
+          <label for="mRate">Chanting speed</label>
+          <select id="mRate">
+            <option value="0.65">Very slow</option>
+            <option value="0.75" selected>Slow and steady</option>
+            <option value="0.9">Natural</option>
+          </select>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px"><a class="listen" id="mListen" href="#" target="_blank" rel="noopener">🎵 Listen to famous rendition</a></div>
+      <p class="tip" id="mTip"></p>
+    </div>
+    <div class="mrow" id="mRow"></div>
+  </section>
+
+  </aside>
+  </div>
+
   <footer>Made with care · Sounds are generated live in your browser</footer>
 </div>
 <div class="toast" id="toast"></div>
@@ -323,8 +395,9 @@ function show(){
   $('#fav').textContent = saved ? '♥ Saved' : '♡ Save';
   if(typeof updateRecUI === 'function') updateRecUI();
 }
-$('#prev').onclick = () => { idx--; show(); };
-$('#next').onclick = () => { idx++; show(); };
+// Moving to another affirmation plays it straight away in the selected voice
+$('#prev').onclick = () => { idx--; show(); initAudio(); speak(current()); };
+$('#next').onclick = () => { idx++; show(); initAudio(); speak(current()); };
 $('#speak').onclick = () => { initAudio(); speak(current()); };
 $('#repeat').onclick = () => { initAudio(); const t = current(); speakSeq([t, t, t]); };
 $('#fav').onclick = () => {
@@ -718,6 +791,137 @@ function speakSeq(list){
   go();
 }
 
+/* ---------- Hindu mantras ---------- */
+const MANTRAS = [
+  {name:'Om', about:'The sound of the universe',
+   dev:'ॐ', tr:'Om', en:'Ommm',
+   mean:'The primordial sound. Chanting Om calms the mind and connects you to everything.'},
+  {name:'Gayatri Mantra', about:'Light and wisdom',
+   dev:'ॐ भूर्भुवः स्वः। तत्सवितुर्वरेण्यं। भर्गो देवस्य धीमहि। धियो यो नः प्रचोदयात्॥',
+   tr:'Om Bhur Bhuvah Svah, Tat Savitur Varenyam, Bhargo Devasya Dhimahi, Dhiyo Yo Nah Prachodayat',
+   mean:'We meditate on the divine light of the Creator. May it inspire and guide our minds.',
+   listen:'Gayatri Mantra 108 times peaceful chanting'},
+  {name:'Venkatesa Suprabhatam', about:'Morning prayer to Lord Venkateswara',
+   dev:'कौसल्या सुप्रजा राम पूर्वा सन्ध्या प्रवर्तते। उत्तिष्ठ नरशार्दूल कर्तव्यं दैवमाह्निकम्॥ उत्तिष्ठोत्तिष्ठ गोविन्द उत्तिष्ठ गरुडध्वज। उत्तिष्ठ कमलाकान्त त्रैलोक्यं मङ्गलं कुरु॥',
+   tr:'Kausalya Supraja Rama, Purva Sandhya Pravartate, Uttishtha Narashardula, Kartavyam Daivam Ahnikam. Uttishthottishtha Govinda, Uttishtha Garudadhvaja, Uttishtha Kamalakanta, Trailokyam Mangalam Kuru',
+   mean:'O Rama, blessed son of Kausalya, dawn is breaking. Arise, the sacred duties of the day await. Arise, O Govinda, Lord of Lakshmi, and bless all the three worlds.',
+   listen:'M.S. Subbulakshmi Venkatesa Suprabhatam'},
+  {name:'Narasimha Mantra', about:'Courage and protection',
+   dev:'ॐ उग्रं वीरं महाविष्णुं ज्वलन्तं सर्वतोमुखम्। नृसिंहं भीषणं भद्रं मृत्युमृत्युं नमाम्यहम्॥',
+   tr:'Om Ugram Viram Maha Vishnum, Jvalantam Sarvato Mukham, Nrisimham Bhishanam Bhadram, Mrityu Mrityum Namamyaham',
+   mean:'I bow to the fierce and mighty Lord Vishnu as Narasimha, radiant on all sides, fearsome yet kind, who conquers even death.',
+   listen:'Narasimha Mantra Ugram Viram Maha Vishnum chanting'},
+  {name:'Om Namah Shivaya', about:'Inner peace and strength',
+   dev:'ॐ नमः शिवाय', tr:'Om Namah Shivaya',
+   mean:'I bow to Shiva, the pure consciousness within me.'},
+  {name:'Mahamrityunjaya Mantra', about:'Healing and protection',
+   dev:'ॐ त्र्यम्बकं यजामहे सुगन्धिं पुष्टिवर्धनम्। उर्वारुकमिव बन्धनान्मृत्योर्मुक्षीय माऽमृतात्॥',
+   tr:'Om Tryambakam Yajamahe, Sugandhim Pushtivardhanam, Urvarukamiva Bandhanan, Mrityor Mukshiya Maamritat',
+   mean:'We worship the three eyed One who nourishes all. May He free us from fear, as a ripe fruit falls freely from the vine.'},
+  {name:'Om Gam Ganapataye Namaha', about:'New beginnings, removing obstacles',
+   dev:'ॐ गं गणपतये नमः', tr:'Om Gam Ganapataye Namaha',
+   mean:'Salutations to Lord Ganesha, the remover of obstacles.'},
+  {name:'Hare Krishna Maha Mantra', about:'Joy and devotion',
+   dev:'हरे कृष्ण हरे कृष्ण, कृष्ण कृष्ण हरे हरे। हरे राम हरे राम, राम राम हरे हरे॥',
+   tr:'Hare Krishna Hare Krishna, Krishna Krishna Hare Hare, Hare Rama Hare Rama, Rama Rama Hare Hare',
+   mean:'A joyful chant of love and devotion to the divine.'},
+  {name:'Asato Ma Sadgamaya', about:'Truth, light and hope',
+   dev:'ॐ असतो मा सद्गमय। तमसो मा ज्योतिर्गमय। मृत्योर्मा अमृतं गमय॥',
+   tr:'Om Asato Ma Sadgamaya, Tamaso Ma Jyotirgamaya, Mrityor Ma Amritam Gamaya',
+   mean:'Lead me from untruth to truth, from darkness to light, from death to immortality.'},
+  {name:'Lokah Samastah', about:'Kindness for all beings',
+   dev:'लोकाः समस्ताः सुखिनो भवन्तु', tr:'Lokah Samastah Sukhino Bhavantu',
+   mean:'May all beings everywhere be happy and free.'},
+  {name:'Om Shri Mahalakshmyai Namaha', about:'Abundance and prosperity',
+   dev:'ॐ श्री महालक्ष्म्यै नमः', tr:'Om Shri Mahalakshmyai Namaha',
+   mean:'Salutations to Goddess Lakshmi, giver of abundance and grace.'},
+  {name:'Om Namo Bhagavate Vasudevaya', about:'Surrender and trust',
+   dev:'ॐ नमो भगवते वासुदेवाय', tr:'Om Namo Bhagavate Vasudevaya',
+   mean:'I bow to the divine Lord who lives in all beings.'},
+  {name:'Om Shanti', about:'Deep peace',
+   dev:'ॐ शान्तिः शान्तिः शान्तिः॥', tr:'Om Shanti Shanti Shanti',
+   mean:'Peace in body, peace in mind, peace in spirit.'}
+];
+let mIdx = Math.min(store.get('ct_midx', 2), MANTRAS.length - 1);
+let mChanting = false;
+function renderMantras(){
+  const row = $('#mRow'); row.innerHTML = '';
+  MANTRAS.forEach((m, i) => {
+    const b = document.createElement('button'); b.className = 'mchip' + (i === mIdx ? ' on' : '');
+    const t = document.createElement('b'); t.textContent = m.name;
+    const s = document.createElement('span'); s.textContent = m.about;
+    b.append(t, s);
+    b.onclick = () => { if(mChanting) stopMantra(); mIdx = i; store.set('ct_midx', i); renderMantras();
+      const v = document.querySelector('.mview'); if(v && v.getBoundingClientRect().top < 0) v.scrollIntoView({behavior: 'smooth', block: 'start'}); };
+    row.appendChild(b);
+  });
+  const m = MANTRAS[mIdx];
+  $('#mDev').textContent = m.dev; $('#mTr').textContent = m.tr; $('#mMean').textContent = m.mean;
+  $('#mListen').href = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(m.listen || (m.name + ' chanting'));
+  $('#mListen').textContent = /Subbulakshmi/.test(m.listen || '') ? '🎵 Listen to M.S. Subbulakshmi' : '🎵 Listen to famous rendition';
+  if(!mChanting) $('#mCounter').textContent = '';
+}
+// Most soothing Hindi voices first: natural female voices such as Swara, Lekha and Google Hindi
+function mScore(v){
+  let s = 0;
+  if(/natural|online|neural|premium|enhanced/i.test(v.name)) s += 20;
+  if(/swara|lekha|kalpana|google/i.test(v.name)) s += 8;
+  if(/female/i.test(v.name)) s += 3;
+  if(/^hi/i.test(v.lang)) s += 2;
+  return s;
+}
+function loadMantraVoices(){
+  if(!hasSpeech){ $('#mTip').textContent = 'Spoken voice is not supported in this browser.'; return; }
+  const list = speechSynthesis.getVoices().filter(v => /^(hi|sa|mr|ne)([-_]|$)/i.test(v.lang))
+    .sort((a, b) => mScore(b) - mScore(a));
+  const sel = $('#mVoice'), saved = store.get('ct_mvoice', '');
+  sel.innerHTML = '';
+  list.forEach(v => { const o = document.createElement('option'); o.value = v.name; o.textContent = `${v.name} (${v.lang}) · Sanskrit sounds`; sel.appendChild(o); });
+  const en = document.createElement('option'); en.value = '__en'; en.textContent = 'English pronunciation (device voice)'; sel.appendChild(en);
+  sel.value = [...sel.options].some(o => o.value === saved) ? saved : (list[0] ? list[0].name : '__en');
+  const ua = navigator.userAgent;
+  $('#mTip').textContent = list.length ? '💡 A Hindi voice is used so the Sanskrit words sound right.'
+    : /iPhone|iPad/i.test(ua) ? '💡 For true Sanskrit pronunciation on iPhone: Settings › Accessibility › Spoken Content › Voices › Hindi, download Lekha, then reopen the app.'
+    : /Android/i.test(ua) ? '💡 For true Sanskrit pronunciation on Android: Settings › Text to speech › Speech Services by Google › Install voice data › Hindi, then reopen the app.'
+    : /Mac/i.test(ua) ? '💡 For true Sanskrit pronunciation on Mac: System Settings › Accessibility › Spoken Content › System voice › Manage Voices › Hindi, add Lekha, then reopen the app.'
+    : '💡 For true Sanskrit pronunciation on Windows, open the app in Microsoft Edge to get the natural Hindi voice Swara.';
+}
+$('#mVoice').onchange = e => store.set('ct_mvoice', e.target.value);
+function stopMantra(){
+  mChanting = false; stopSpeech();
+  $('#mPlay').disabled = false; $('#mStop').disabled = true;
+}
+function chantMantra(){
+  if(!hasSpeech){ toast('Spoken voice is not supported in this browser'); return; }
+  initAudio(); stopSpeech();
+  const m = MANTRAS[mIdx], n = +$('#mCount').value, rate = +$('#mRate').value;
+  const vName = $('#mVoice').value, useHi = vName !== '__en';
+  const v = useHi ? speechSynthesis.getVoices().find(x => x.name === vName) : voice;
+  const text = useHi ? m.dev.replace(/[।॥]/g, ', ') : (m.en || m.tr);
+  const id = ++speakId; let k = 0;
+  mChanting = true; $('#mPlay').disabled = true; $('#mStop').disabled = false;
+  showCaption(m.tr);
+  const done = () => {
+    if(id === speakId){ duck(false); hideCaption(4000); $('#mCounter').textContent = `🙏 ${n} chant${n > 1 ? 's' : ''} complete`; }
+    mChanting = false; $('#mPlay').disabled = false; $('#mStop').disabled = true;
+  };
+  const once = () => {
+    if(id !== speakId || k >= n) return done();
+    k++; $('#mCounter').textContent = `🪷 Chant ${k} of ${n}`;
+    const u = new SpeechSynthesisUtterance(text);
+    if(v){ u.voice = v; u.lang = v.lang; } else if(useHi) u.lang = 'hi-IN';
+    u.rate = rate; u.pitch = 0.85; u.volume = 0.95;
+    u.onend = u.onerror = () => setTimeout(once, 1400);
+    duck(true); speechSynthesis.speak(u);
+  };
+  chime(); setTimeout(once, 1400);
+}
+$('#mPlay').onclick = chantMantra;
+$('#mStop').onclick = () => { stopMantra(); $('#mCounter').textContent = ''; };
+$('#mDrone').onclick = () => setSound('tanpura', !state.tanpura.on);
+renderMantras(); loadMantraVoices();
+if(hasSpeech) speechSynthesis.addEventListener('voiceschanged', loadMantraVoices);
+
 /* ---------- Audio engine (all sounds generated live) ---------- */
 let ctx, master, reverb, chimeBus, noise = {};
 let masterLevel = 0.85;
@@ -794,7 +998,8 @@ const SOUNDS = [
   {id:'whale', name:'Whale song',   icon:'🐋', desc:'Deep ocean whale calls',         send:0.9,  vol:70},
   {id:'waves', name:'Ocean waves',  icon:'🌊', desc:'Slow rolling waves',             send:0.15, vol:50},
   {id:'rain',  name:'Soft rain',    icon:'🌧️', desc:'Gentle rainfall',                send:0.05, vol:40},
-  {id:'bowl',  name:'Singing bowl', icon:'🔔', desc:'A soft chime every few breaths', send:0.7,  vol:45}
+  {id:'bowl',  name:'Singing bowl', icon:'🔔', desc:'A soft chime every few breaths', send:0.7,  vol:45},
+  {id:'tanpura', name:'Tanpura drone', icon:'🪔', desc:'Warm Indian drone, lovely for chanting', send:0.45, vol:40}
 ];
 const state = {};
 SOUNDS.forEach(s => state[s.id] = {on:false, vol:s.vol, nodes:[], timers:[], out:null});
@@ -821,6 +1026,25 @@ const starters = {
     n.connect(filt('highpass', 500)).connect(filt('lowpass', 7000)).connect(gain(0.9)).connect(S.out);
     S.nodes.push(n);
   },
+  tanpura(S){
+    // Four strings plucked in turn: Pa, Sa (high), Sa (high), Sa (low)
+    const SA = 138.59, notes = [SA * 1.5, SA * 2, SA * 2, SA];
+    let i = 0;
+    const pluck = () => {
+      const f = notes[i++ % 4], t = ctx.currentTime;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.09, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + 4.2);
+      const lp = filt('lowpass', 2400, 1.2);
+      lp.frequency.setValueAtTime(2600, t); lp.frequency.exponentialRampToValueAtTime(700, t + 3.5);
+      [1, 1.0025, 0.9978].forEach(d => {
+        const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f * d;
+        o.connect(lp); o.start(t); o.stop(t + 4.3);
+      });
+      lp.connect(g).connect(S.out);
+      S.timers.push(setTimeout(pluck, 950));
+    };
+    pluck();
+  },
   bowl(S){
     const next = () => { bowlStrike(S.out, 0.5); S.timers.push(setTimeout(next, 11000 + Math.random()*6000)); };
     next();
@@ -845,6 +1069,7 @@ function setSound(id, on){
   }
   const btn = document.querySelector(`[data-toggle="${id}"]`);
   btn.classList.toggle('on', on); btn.textContent = on ? 'On' : 'Off';
+  if(id === 'tanpura'){ const d = $('#mDrone'); d.classList.toggle('on', on); d.textContent = on ? '🪔 Tanpura on' : '🪔 Tanpura drone'; }
 }
 function duck(on){ if(ctx) master.gain.setTargetAtTime(on ? masterLevel*0.5 : masterLevel, ctx.currentTime, 0.3); }
 
@@ -959,7 +1184,7 @@ $('#newAff').addEventListener('keydown', e => { if(e.key === 'Enter') addCustom(
 show(); renderLists(); updateTimer();
 
 /* ---------- Cloud sync: keeps the installed app the same as the website ---------- */
-const APP_VERSION = '1.4.3';
+const APP_VERSION = '1.5.0';
 const APP_URL = 'https://ranjanielango033wins.github.io/calm-tide/';
 let latestVersion = null;
 function syncState(cls, label, note){
