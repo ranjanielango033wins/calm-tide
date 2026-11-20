@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calm Tide: Daily Affirmations and Meditation</title>
+<meta name="theme-color" content="#0b2748">
+<meta name="description" content="Daily positive affirmations spoken aloud, guided breathing meditation, whale song and calming ocean sounds.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Calm Tide">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#eaf6f8; --muted:#a3c3d0; --accent:#7fd6d0; --accent-ink:#05323b;
+    --card:rgba(255,255,255,.065); --line:rgba(255,255,255,.14);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:Nunito,system-ui,sans-serif; color:var(--ink);
+    background:#06132a;min-height:100vh;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;z-index:-1;
+    background:linear-gradient(180deg,#06132a 0%,#0b2748 40%,#0f4a66 75%,#13627a 100%);
+  }
+  .wrap{max-width:860px;margin:0 auto;padding:28px 18px 70px}
+  header{text-align:center;padding:10px 0 4px}
+  header h1{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:clamp(34px,6vw,48px);margin:0;letter-spacing:.5px}
+  header p{color:var(--muted);margin:6px 0 0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:22px;margin-top:18px;backdrop-filter:blur(6px)}
+  .card h2{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin:0 0 6px;font-weight:700}
+  .sub{color:var(--muted);font-size:14px;margin:0}
+  .affirm{
+    font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:500;
+    font-size:clamp(26px,5vw,38px);line-height:1.28;text-align:center;
+    min-height:3.4em;display:flex;align-items:center;justify-content:center;
+    padding:14px 8px;transition:opacity .25s ease;
+  }
+  .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center}
+  button,select,input[type=text]{font:inherit;color:var(--ink)}
+  button{
+    cursor:pointer;border:1px solid var(--line);background:rgba(255,255,255,.08);
+    border-radius:999px;padding:10px 16px;transition:background .2s,border-color .2s;
+  }
+  button:hover{background:rgba(255,255,255,.16)}
+  button.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent;font-weight:700}
+  button.primary:hover{background:#9ae4df}
+  button:disabled{opacity:.4;cursor:default}
+  button.on{background:rgba(127,214,208,.22);border-color:var(--accent)}
+  button.small{padding:6px 12px;font-size:14px}
+  select,input[type=text]{background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:12px;padding:9px 12px}
+  select option{color:#000}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .settings{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+  .settings label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+  .settings select{width:100%}
+
+  .orbwrap{height:250px;display:flex;align-items:center;justify-content:center;position:relative}
+  .ring{position:absolute;width:210px;height:210px;border-radius:50%;border:1px dashed rgba(127,214,208,.25)}
+  .orb{
+    width:140px;height:140px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#d4fbf6,#5cc0cc 55%,#1b6688);
+    box-shadow:0 0 70px rgba(127,214,208,.45);
+    transform:scale(.8);transition:transform 4s ease-in-out;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .orb span{color:var(--accent-ink);font-weight:700;font-size:15px;text-align:center}
+  .timer{font-size:40px;font-weight:300;text-align:center;letter-spacing:2px;margin:4px 0 12px;font-variant-numeric:tabular-nums}
+  .caption{
+    font-family:'Cormorant Garamond',serif;font-style:italic;font-size:clamp(22px,4.4vw,30px);
+    line-height:1.3;text-align:center;min-height:2.7em;padding:4px 10px 10px;
+    display:flex;align-items:center;justify-content:center;
+    opacity:0;transition:opacity .8s ease;color:#f3fbfc;text-shadow:0 0 18px rgba(127,214,208,.45);
+  }
+  .caption.show{opacity:1}
+  .label{font-size:13px;color:var(--muted);text-align:center;margin:10px 0 6px}
+
+  .sound{display:grid;grid-template-columns:44px 1fr 150px 74px;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+  .sound:first-of-type{border-top:none}
+  .sound .icon{font-size:28px;text-align:center}
+  .sound b{display:block}
+  .sound small{color:var(--muted)}
+  .master{display:flex;gap:12px;align-items:center;margin-top:10px;color:var(--muted);font-size:14px}
+
+  .list{list-style:none;padding:0;margin:10px 0 0}
+  .list li{display:flex;gap:8px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+  .list li span{flex:1;font-family:'Cormorant Garamond',serif;font-size:20px}
+  .empty{color:var(--muted);font-size:14px;padding:8px 0}
+  .add{display:flex;gap:8px;margin-top:12px}
+  .add input{flex:1;min-width:0}
+
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(30px);opacity:0;
+    background:#e9fbf9;color:#05323b;padding:10px 18px;border-radius:999px;font-weight:600;transition:.3s;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:28px}
+
+  @media (max-width:560px){
+    .sound{grid-template-columns:38px 1fr 70px}
+    .sound button{grid-column:3;grid-row:1}
+    .sound input[type=range]{grid-column:2 / 4;grid-row:2}
+    .settings{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Calm Tide 🐋</h1>
+    <p>Daily affirmations, spoken aloud, with whale song and ocean calm</p>
+  </header>
+
+  <!-- Today's affirmation -->
+  <section class="card">
+    <h2>Today's affirmation</h2>
+    <p class="sub" id="date"></p>
+    <div class="affirm" id="aff"></div>
+    <div class="row">
+      <button id="prev" aria-label="Previous affirmation">‹ Previous</button>
+      <button class="primary" id="speak">🔊 Say it aloud</button>
+      <button id="repeat">Repeat 3 times</button>
+      <button id="next" aria-label="Next affirmation">Next ›</button>
+      <button id="fav">♡ Save</button>
+    </div>
+    <div class="settings">
+      <div>
+        <label for="voice">Voice</label>
+        <select id="voice"><option>Loading voices…</option></select>
+      </div>
+      <div>
+        <label for="rate">Speaking speed</label>
+        <select id="rate">
+          <option value="0.68">Very slow and dreamy</option>
+          <option value="0.78" selected>Soothing (recommended)</option>
+          <option value="0.9">Gentle</option>
+          <option value="1">Normal</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- Meditation -->
+  <section class="card">
+    <h2>Meditate</h2>
+    <p class="sub">Breathe with the circle. Affirmations are spoken softly while you relax.</p>
+    <div class="orbwrap"><div class="ring"></div><div class="orb" id="orb"><span id="orbText">Ready</span></div></div>
+    <div class="caption" id="caption" aria-live="polite"></div>
+    <div class="timer" id="timer">10:00</div>
+    <div class="label">Session length</div>
+    <div class="row" id="durs"></div>
+    <div class="label">Speak an affirmation every</div>
+    <div class="row" id="every"></div>
+    <div class="row" style="margin-top:16px">
+      <button class="primary" id="start">▶ Start meditation</button>
+      <button id="pause" disabled>Pause</button>
+      <button id="stop" disabled>Stop</button>
+    </div>
+  </section>
+
+  <!-- Sounds -->
+  <section class="card">
+    <h2>Calming sounds</h2>
+    <p class="sub">Mix your own background. Whale song and ocean waves start automatically if nothing is playing.</p>
+    <div class="row" style="margin:12px 0 4px">
+      <button id="presetWhale">🐋 Whale meditation</button>
+      <button id="presetRain">🌧️ Rainy calm</button>
+      <button id="allOff">Stop all sounds</button>
+    </div>
+    <div id="sounds"></div>
+    <div class="master">🔈 Master volume <input type="range" id="master" min="0" max="100" value="85"></div>
+  </section>
+
+  <!-- My affirmations -->
+  <section class="card">
+    <h2>My affirmations</h2>
+    <p class="sub">Write your own, and keep the ones you love. They join your daily rotation.</p>
+    <div class="add">
+      <input type="text" id="newAff" maxlength="160" placeholder="I am calm, confident and ready for today">
+      <button class="primary" id="addBtn">Add</button>
+    </div>
+    <ul class="list" id="customList"></ul>
+    <h2 style="margin-top:20px">Saved favourites</h2>
+    <ul class="list" id="favList"></ul>
+  </section>
+
+  <footer>Made with care · Sounds are generated live in your browser</footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const AFF = [
+  "I am calm, I am safe, and I am exactly where I need to be.",
+  "I choose peace over worry today.",
+  "I am worthy of love, joy and good things.",
+  "Every breath I take fills me with calm.",
+  "I trust the timing of my life.",
+  "I am proud of how far I have come.",
+  "I welcome happiness into my day.",
+  "My mind is clear and my heart is light.",
+  "I am strong, capable and confident.",
+  "I let go of what I cannot control.",
+  "I am grateful for this moment.",
+  "Good things are flowing into my life.",
+  "I treat myself with kindness and patience.",
+  "I am growing and learning every day.",
+  "I radiate positivity and warmth.",
+  "I deserve rest, and I allow myself to slow down.",
+  "My challenges help me become stronger.",
+  "I am enough, just as I am.",
+  "I fill my day with gratitude and smiles.",
+  "With every breath out, I release tension from my body.",
+  "I believe in myself and my dreams.",
+  "Peace begins with me.",
+  "I attract kind people and beautiful moments.",
+  "Today I choose happiness.",
+  "My body is healthy and my mind is calm.",
+  "I am open to new opportunities.",
+  "I forgive myself and move forward with love.",
+  "Each day is a fresh start.",
+  "I bring calm and clarity to everything I do.",
+  "Joy is my natural state.",
+  "I am surrounded by abundance.",
+  "I speak to myself with love.",
+  "Like the ocean, I flow through life with ease.",
+  "I am becoming the best version of myself.",
+  "My work is meaningful and I do it with confidence.",
+  "I am thankful for the people who love me.",
+  "I let the waves wash away my stress.",
+  "I am light, I am free, I am at peace.",
+  "Happiness is a choice I make every day.",
+  "Today I will be gentle with myself."
+];
+
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+let custom = store.get('ct_custom', []);
+let favs = store.get('ct_favs', []);
+const all = () => AFF.concat(custom);
+
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ---------- Daily affirmation ---------- */
+const now = new Date();
+const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 864e5);
+let idx = dayOfYear % AFF.length;
+$('#date').textContent = now.toLocaleDateString(undefined, {weekday:'long', day:'numeric', month:'long'});
+
+function current(){ const l = all(); idx = ((idx % l.length) + l.length) % l.length; return l[idx]; }
+function show(){
+  const t = current(), el = $('#aff');
+  el.style.opacity = 0;
+  setTimeout(() => { el.textContent = t; el.style.opacity = 1; }, 220);
+  const saved = favs.includes(t);
+  $('#fav').classList.toggle('on', saved);
+  $('#fav').textContent = saved ? '♥ Saved' : '♡ Save';
+}
+$('#prev').onclick = () => { idx--; show(); };
+$('#next').onclick = () => { idx++; show(); };
+$('#speak').onclick = () => { initAudio(); speak(current()); };
+$('#repeat').onclick = () => { initAudio(); const t = current(); speakSeq([t, t, t]); };
+$('#fav').onclick = () => {
+  const t = current();
+  favs = favs.includes(t) ? favs.filter(x => x !== t) : favs.concat(t);
+  store.set('ct_favs', favs); show(); renderLists();
+};
+
+/* ---------- Voice ---------- */
+let voices = [], voice = null, rate = 0.78;
+// Soft, natural sounding voices are ranked first
+function voiceScore(v){
+  let s = 0;
+  if(/natural|neural|enhanced|premium|online/i.test(v.name)) s += 10;
+  if(/female|samantha|serena|karen|moira|tessa|libby|sonia|aria|jenny|natasha|zira|ava|allison|susan|google uk english female/i.test(v.name)) s += 5;
+  if(/en[-_](GB|AU|IE|IN)/i.test(v.lang)) s += 1;
+  if(/male\b|daniel|fred|alex\b|david|mark|guy|ryan/i.test(v.name) && !/female/i.test(v.name)) s -= 3;
+  return s;
+}
+const hasSpeech = 'speechSynthesis' in window;
+function loadVoices(){
+  if(!hasSpeech){ $('#voice').innerHTML = '<option>Voice not supported in this browser</option>'; return; }
+  const allV = speechSynthesis.getVoices();
+  voices = allV.filter(v => /^en/i.test(v.lang));
+  if(!voices.length) voices = allV;
+  voices.sort((a, b) => voiceScore(b) - voiceScore(a));
+  const sel = $('#voice'); sel.innerHTML = '';
+  voices.forEach((v, i) => { const o = document.createElement('option'); o.value = i; o.textContent = `${v.name} (${v.lang})`; sel.appendChild(o); });
+  const saved = store.get('ct_voice', '');
+  let pick = voices.findIndex(v => v.name === saved);
+  if(pick < 0) pick = 0; // best soothing voice is first after sorting
+  sel.value = pick; voice = voices[pick] || null;
+}
+if(hasSpeech){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; } else loadVoices();
+$('#voice').onchange = e => { voice = voices[+e.target.value] || null; if(voice) store.set('ct_voice', voice.name); };
+$('#rate').onchange = e => { rate = +e.target.value; };
+
+// Show the words being spoken on screen
+let captionT;
+function showCaption(text){
+  const c = $('#caption'); clearTimeout(captionT);
+  c.classList.remove('show');
+  setTimeout(() => { c.textContent = text; c.classList.add('show'); }, 300);
+}
+function hideCaption(delay){
+  clearTimeout(captionT);
+  captionT = setTimeout(() => $('#caption').classList.remove('show'), delay);
+}
+
+function stopSpeech(){ speakId++; if(hasSpeech) speechSynthesis.cancel(); duck(false); }
+
+// Speak slowly and softly, with a gentle pause at each comma and full stop
+let speakId = 0;
+function speak(text, onend){
+  showCaption(text);
+  if(!hasSpeech){ toast('Spoken voice is not supported in this browser'); hideCaption(6000); onend && onend(); return; }
+  speechSynthesis.cancel();
+  const id = ++speakId;
+  const parts = text.split(/(?<=[,.;!?])\s+/).filter(Boolean);
+  let i = 0;
+  duck(true);
+  const finish = () => { if(id !== speakId) return; duck(false); hideCaption(sess.running ? 9000 : 5000); onend && onend(); };
+  const next = () => {
+    if(id !== speakId) return;
+    if(i >= parts.length){ finish(); return; }
+    const u = new SpeechSynthesisUtterance(parts[i++]);
+    if(voice) u.voice = voice;
+    u.rate = rate; u.pitch = 0.92; u.volume = 0.9;
+    u.onend = u.onerror = () => setTimeout(next, 450);
+    speechSynthesis.speak(u);
+  };
+  next();
+}
+function speakSeq(list){
+  let i = 0;
+  const go = () => { if(i < list.length){ const t = list[i++]; speak(t, () => setTimeout(go, 1600)); } };
+  go();
+}
+
+/* ---------- Audio engine (all sounds generated live) ---------- */
+let ctx, master, reverb, chimeBus, noise = {};
+let masterLevel = 0.85;
+function initAudio(){
+  if(!ctx){
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain(); master.gain.value = masterLevel; master.connect(ctx.destination);
+    reverb = ctx.createConvolver(); reverb.buffer = makeImpulse(5, 2.4);
+    const wet = ctx.createGain(); wet.gain.value = 0.7; reverb.connect(wet).connect(master);
+    chimeBus = ctx.createGain(); chimeBus.gain.value = 0.6; chimeBus.connect(master);
+    const cs = ctx.createGain(); cs.gain.value = 0.8; chimeBus.connect(cs).connect(reverb);
+    ['white', 'pink', 'brown'].forEach(t => noise[t] = makeNoise(t));
+  }
+  if(ctx.state === 'suspended') ctx.resume();
+}
+function makeImpulse(sec, decay){
+  const len = ctx.sampleRate * sec, b = ctx.createBuffer(2, len, ctx.sampleRate);
+  for(let c = 0; c < 2; c++){ const d = b.getChannelData(c); for(let i = 0; i < len; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, decay); }
+  return b;
+}
+function makeNoise(type){
+  const len = ctx.sampleRate * 8, b = ctx.createBuffer(1, len, ctx.sampleRate), d = b.getChannelData(0);
+  let last = 0, b0 = 0, b1 = 0, b2 = 0;
+  for(let i = 0; i < len; i++){
+    const w = Math.random()*2 - 1;
+    if(type === 'white') d[i] = w * 0.5;
+    else if(type === 'brown'){ last = (last + 0.02*w) / 1.02; d[i] = last * 3.5; }
+    else { b0 = 0.99765*b0 + w*0.0990460; b1 = 0.96300*b1 + w*0.2965164; b2 = 0.57000*b2 + w*1.0526913; d[i] = (b0+b1+b2+w*0.1848) * 0.11; }
+  }
+  // fade the loop edges to avoid a click
+  const f = 2000; for(let i = 0; i < f; i++){ d[i] *= i/f; d[len-1-i] *= i/f; }
+  return b;
+}
+function loopNoise(type){ const s = ctx.createBufferSource(); s.buffer = noise[type]; s.loop = true; s.start(); return s; }
+function filt(type, freq, q){ const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; if(q) f.Q.value = q; return f; }
+function gain(v){ const g = ctx.createGain(); g.gain.value = v; return g; }
+
+function whaleCall(dest){
+  const t = ctx.currentTime, dur = 2.5 + Math.random()*3.5;
+  const f0 = 90 + Math.random()*230, fMid = f0*(0.7 + Math.random()*1.1), fEnd = f0*(0.5 + Math.random()*0.9);
+  const o = ctx.createOscillator(), o2 = ctx.createOscillator();
+  o.type = 'sine'; o2.type = 'triangle';
+  [[o,1],[o2,2]].forEach(([osc,m]) => {
+    osc.frequency.setValueAtTime(f0*m, t);
+    osc.frequency.exponentialRampToValueAtTime(fMid*m, t + dur*0.55);
+    osc.frequency.exponentialRampToValueAtTime(fEnd*m, t + dur);
+  });
+  const vib = ctx.createOscillator(); vib.frequency.value = 3 + Math.random()*3;
+  const vd = gain(f0*0.02); vib.connect(vd); vd.connect(o.frequency); vd.connect(o2.frequency);
+  const h = gain(0.1); o2.connect(h);
+  const lp = filt('lowpass', 1100, 2);
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0.0001, t);
+  env.gain.exponentialRampToValueAtTime(0.35, t + 0.7);
+  env.gain.linearRampToValueAtTime(0.28, t + dur - 0.9);
+  env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(lp); h.connect(lp); lp.connect(env).connect(dest);
+  [o, o2, vib].forEach(n => { n.start(t); n.stop(t + dur + 0.1); });
+}
+function bowlStrike(dest, level){
+  const t = ctx.currentTime, base = 196;
+  [[1,1,8],[1.006,0.6,8],[2.76,0.3,4],[5.4,0.1,2.5]].forEach(([m,a,decay]) => {
+    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = base*m;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(level*a*0.5, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+    o.connect(g).connect(dest); o.start(t); o.stop(t + decay + 0.1);
+  });
+}
+function chime(){ initAudio(); bowlStrike(chimeBus, 0.6); }
+
+const SOUNDS = [
+  {id:'whale', name:'Whale song',   icon:'🐋', desc:'Deep ocean whale calls',         send:0.9,  vol:70},
+  {id:'waves', name:'Ocean waves',  icon:'🌊', desc:'Slow rolling waves',             send:0.15, vol:50},
+  {id:'rain',  name:'Soft rain',    icon:'🌧️', desc:'Gentle rainfall',                send:0.05, vol:40},
+  {id:'bowl',  name:'Singing bowl', icon:'🔔', desc:'A soft chime every few breaths', send:0.7,  vol:45}
+];
+const state = {};
+SOUNDS.forEach(s => state[s.id] = {on:false, vol:s.vol, nodes:[], timers:[], out:null});
+
+const starters = {
+  whale(S){
+    const bed = loopNoise('brown'), g = gain(0.35);
+    bed.connect(filt('lowpass', 220)).connect(g).connect(S.out);
+    S.nodes.push(bed);
+    const next = () => { whaleCall(S.out); S.timers.push(setTimeout(next, 3500 + Math.random()*6500)); };
+    S.timers.push(setTimeout(next, 600));
+  },
+  waves(S){
+    const n = loopNoise('pink'), lp = filt('lowpass', 700), amp = gain(0.45);
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.09;
+    lfo.connect(gain(0.4)).connect(amp.gain);
+    lfo.connect(gain(350)).connect(lp.frequency);
+    lfo.start();
+    n.connect(lp).connect(amp).connect(S.out);
+    S.nodes.push(n, lfo);
+  },
+  rain(S){
+    const n = loopNoise('pink');
+    n.connect(filt('highpass', 500)).connect(filt('lowpass', 7000)).connect(gain(0.9)).connect(S.out);
+    S.nodes.push(n);
+  },
+  bowl(S){
+    const next = () => { bowlStrike(S.out, 0.5); S.timers.push(setTimeout(next, 11000 + Math.random()*6000)); };
+    next();
+  }
+};
+
+function setSound(id, on){
+  initAudio();
+  const S = state[id], def = SOUNDS.find(s => s.id === id);
+  if(on === S.on) return;
+  S.on = on;
+  if(on){
+    S.out = ctx.createGain(); S.out.gain.value = 0; S.out.connect(master);
+    const send = gain(def.send); S.out.connect(send).connect(reverb);
+    S.out.gain.setTargetAtTime(S.vol/100, ctx.currentTime, 0.8);
+    starters[id](S);
+  } else {
+    const out = S.out, nodes = S.nodes;
+    out.gain.setTargetAtTime(0, ctx.currentTime, 0.4);
+    S.timers.forEach(clearTimeout); S.timers = []; S.nodes = [];
+    setTimeout(() => { nodes.forEach(n => { try{ n.stop(); }catch(e){} }); out.disconnect(); }, 2500);
+  }
+  const btn = document.querySelector(`[data-toggle="${id}"]`);
+  btn.classList.toggle('on', on); btn.textContent = on ? 'On' : 'Off';
+}
+function duck(on){ if(ctx) master.gain.setTargetAtTime(on ? masterLevel*0.5 : masterLevel, ctx.currentTime, 0.3); }
+
+// Build sound rows
+const soundsEl = $('#sounds');
+SOUNDS.forEach(s => {
+  const row = document.createElement('div'); row.className = 'sound';
+  row.innerHTML = `<div class="icon">${s.icon}</div>
+    <div><b>${s.name}</b><small>${s.desc}</small></div>
+    <input type="range" min="0" max="100" value="${s.vol}" aria-label="${s.name} volume">
+    <button class="small" data-toggle="${s.id}">Off</button>`;
+  row.querySelector('button').onclick = () => setSound(s.id, !state[s.id].on);
+  row.querySelector('input').oninput = e => {
+    const S = state[s.id]; S.vol = +e.target.value;
+    if(S.on) S.out.gain.setTargetAtTime(S.vol/100, ctx.currentTime, 0.1);
+  };
+  soundsEl.appendChild(row);
+});
+$('#master').oninput = e => { masterLevel = e.target.value/100; if(ctx) master.gain.setTargetAtTime(masterLevel, ctx.currentTime, 0.1); };
+const preset = on => SOUNDS.forEach(s => setSound(s.id, on.includes(s.id)));
+$('#presetWhale').onclick = () => preset(['whale', 'waves']);
+$('#presetRain').onclick = () => preset(['rain', 'bowl']);
+$('#allOff').onclick = () => preset([]);
+
+/* ---------- Meditation session ---------- */
+let dur = 10, every = 60;
+const sess = {running:false, paused:false, remain:0, since:0, timer:null, breathT:null};
+function choiceRow(el, opts, val, fmt, set){
+  opts.forEach(v => {
+    const b = document.createElement('button'); b.className = 'small' + (v === val ? ' on' : ''); b.textContent = fmt(v);
+    b.onclick = () => { if(sess.running) return; set(v); [...el.children].forEach(c => c.classList.remove('on')); b.classList.add('on'); updateTimer(); };
+    el.appendChild(b);
+  });
+}
+choiceRow($('#durs'), [3,5,10,15,20], dur, v => v + ' min', v => dur = v);
+choiceRow($('#every'), [30,60,90], every, v => v < 60 ? v + ' sec' : (v/60) + (v === 60 ? ' min' : ' min'), v => every = v);
+// fix label for 90 seconds
+$('#every').children[2].textContent = '90 sec';
+
+function fmtTime(s){ const m = Math.floor(s/60), r = s%60; return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`; }
+function updateTimer(){ $('#timer').textContent = fmtTime(sess.running ? sess.remain : dur*60); }
+
+const PHASES = [['Breathe in',4,1.35],['Hold',4,1.35],['Breathe out',6,0.8]];
+function breathe(i){
+  if(!sess.running) return;
+  if(sess.paused){ sess.breathT = setTimeout(() => breathe(i), 500); return; }
+  const [label, d, s] = PHASES[i % 3], orb = $('#orb');
+  orb.style.transitionDuration = d + 's'; orb.style.transform = `scale(${s})`;
+  $('#orbText').textContent = label;
+  sess.breathT = setTimeout(() => breathe(i + 1), d*1000);
+}
+function tick(){
+  if(sess.paused) return;
+  sess.remain--; sess.since++; updateTimer();
+  if(sess.since >= every && sess.remain > 8){ sess.since = 0; idx++; show(); speak(current()); }
+  if(sess.remain <= 0) endSession(true);
+}
+function setButtons(){
+  $('#start').disabled = sess.running; $('#pause').disabled = !sess.running; $('#stop').disabled = !sess.running;
+  $('#pause').textContent = sess.paused ? 'Resume' : 'Pause';
+}
+$('#start').onclick = () => {
+  initAudio();
+  if(!SOUNDS.some(s => state[s.id].on)){ setSound('whale', true); setSound('waves', true); }
+  Object.assign(sess, {running:true, paused:false, remain:dur*60, since:Math.max(0, every - 15)});
+  updateTimer(); setButtons(); chime();
+  setTimeout(() => speak('Welcome. Relax your shoulders, and breathe slowly with the circle.'), 1200);
+  breathe(0);
+  sess.timer = setInterval(tick, 1000);
+};
+$('#pause').onclick = () => {
+  sess.paused = !sess.paused;
+  if(sess.paused) stopSpeech();
+  $('#orbText').textContent = sess.paused ? 'Paused' : $('#orbText').textContent;
+  setButtons();
+};
+$('#stop').onclick = () => endSession(false);
+function endSession(done){
+  clearInterval(sess.timer); clearTimeout(sess.breathT);
+  sess.running = false; sess.paused = false;
+  const orb = $('#orb'); orb.style.transitionDuration = '2s'; orb.style.transform = 'scale(.8)';
+  $('#orbText').textContent = done ? 'Complete ✨' : 'Ready';
+  setButtons(); updateTimer();
+  if(done){ chime(); setTimeout(() => speak('Your meditation is complete. Carry this calm with you today.'), 1500); }
+  else { stopSpeech(); hideCaption(0); }
+}
+
+/* ---------- My affirmations ---------- */
+function listItem(text, onRemove){
+  const li = document.createElement('li');
+  const span = document.createElement('span'); span.textContent = text;
+  const play = document.createElement('button'); play.className = 'small'; play.textContent = '🔊';
+  play.setAttribute('aria-label', 'Say aloud'); play.onclick = () => { initAudio(); speak(text); };
+  const rm = document.createElement('button'); rm.className = 'small'; rm.textContent = 'Remove'; rm.onclick = onRemove;
+  li.append(span, play, rm); return li;
+}
+function renderLists(){
+  const cl = $('#customList'), fl = $('#favList'); cl.innerHTML = ''; fl.innerHTML = '';
+  if(!custom.length) cl.innerHTML = '<li class="empty">No personal affirmations yet.</li>';
+  custom.forEach(t => cl.appendChild(listItem(t, () => { custom = custom.filter(x => x !== t); store.set('ct_custom', custom); renderLists(); show(); })));
+  if(!favs.length) fl.innerHTML = '<li class="empty">Tap ♡ Save on any affirmation to keep it here.</li>';
+  favs.forEach(t => fl.appendChild(listItem(t, () => { favs = favs.filter(x => x !== t); store.set('ct_favs', favs); renderLists(); show(); })));
+}
+function addCustom(){
+  const v = $('#newAff').value.trim(); if(!v) return;
+  if(!custom.includes(v)){ custom.push(v); store.set('ct_custom', custom); }
+  $('#newAff').value = ''; idx = all().indexOf(v); show(); renderLists(); toast('Affirmation added');
+}
+$('#addBtn').onclick = addCustom;
+$('#newAff').addEventListener('keydown', e => { if(e.key === 'Enter') addCustom(); });
+
+show(); renderLists(); updateTimer();
+
+/* ---------- Installable mobile app (works when hosted, e.g. GitHub Pages) ---------- */
+try{
+  if('serviceWorker' in navigator && location.protocol === 'https:'){
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+}catch(e){}
+</script>
+</body>
+</html>
