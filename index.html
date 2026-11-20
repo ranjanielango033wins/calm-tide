@@ -66,6 +66,16 @@
   .check input{accent-color:var(--accent);width:18px;height:18px}
   #recBtn.recording{background:#e46a6a;border-color:#e46a6a;color:#fff;animation:pulse 1.2s infinite}
   @keyframes pulse{50%{opacity:.6}}
+  .sync{font-size:14px}
+  .sync.ok{border-color:#7fd6a0;background:rgba(127,214,160,.15)}
+  .sync.update{border-color:#f6c9a8;background:rgba(246,201,168,.2);animation:pulse 1.6s infinite}
+  .sync.off{opacity:.75}
+  .sync-note{font-size:12px;color:var(--muted);margin:8px 0 0;min-height:1em}
+  .neural{background:linear-gradient(135deg,rgba(127,214,208,.14),rgba(246,201,168,.08))}
+  .badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.5px;padding:2px 8px;border-radius:999px;background:var(--accent);color:var(--accent-ink);margin-left:4px;vertical-align:middle}
+  #nVoice{flex:1;min-width:0}
+  .bar{height:8px;border-radius:99px;background:rgba(255,255,255,.12);margin-top:12px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
   .install-help{max-width:520px;margin:12px auto 0;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.07);text-align:left;font-size:14px;line-height:1.6}
   .tip{font-size:13px;color:var(--muted);margin:12px 0 0;line-height:1.5}
   .settings{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
@@ -124,7 +134,11 @@
   <header>
     <h1>Calm Tide 🐋</h1>
     <p>Daily affirmations, spoken aloud, with whale song and ocean calm</p>
-    <div class="row" style="margin-top:14px"><button class="primary" id="installBtn">📲 Install app</button></div>
+    <div class="row" style="margin-top:14px">
+      <button class="primary" id="installBtn">📲 Install app</button>
+      <button class="sync" id="syncBtn" title="Check that this app matches the website">☁ Checking sync…</button>
+    </div>
+    <p class="sync-note" id="syncNote"></p>
     <div class="install-help" id="installHelp" hidden></div>
   </header>
 
@@ -139,6 +153,25 @@
       <button id="repeat">Repeat 3 times</button>
       <button id="next" aria-label="Next affirmation">Next ›</button>
       <button id="fav">♡ Save</button>
+    </div>
+    <div class="mine neural">
+      <div class="mine-head">✨ <b>Natural voice</b> <span class="badge">Human sounding</span>
+        <span id="nStatus" class="sub">A calm, realistic AI voice that runs on your device. One time download of about 90 MB, then it works offline.</span></div>
+      <div class="row" style="justify-content:flex-start">
+        <select id="nVoice" aria-label="Natural voice">
+          <option value="af_heart">💛 Heart · warm and gentle (recommended)</option>
+          <option value="af_nicole">🌙 Nicole · soft whisper</option>
+          <option value="af_bella">🌸 Bella · bright and kind</option>
+          <option value="bf_emma">🍃 Emma · calm British</option>
+        </select>
+        <button id="nPreview" class="small">▶ Preview</button>
+      </div>
+      <div class="row" style="justify-content:flex-start;margin-top:10px">
+        <button id="nEnable" class="small primary">⬇ Download natural voice</button>
+        <button id="nPrepare" class="small" hidden>Prepare all affirmations</button>
+      </div>
+      <div class="bar" id="nBar" hidden><i id="nBarFill"></i></div>
+      <label class="check"><input type="checkbox" id="useNeural"> Use the natural voice for all affirmations</label>
     </div>
     <div class="mine">
       <div class="mine-head">🎙 <b>My voice</b> <span id="recStatus" class="sub">Record this affirmation in your own voice, or upload audio</span></div>
@@ -375,25 +408,123 @@ const db = {
   open(){
     if(!this._p) this._p = new Promise((res, rej) => {
       try{
-        const r = indexedDB.open('calmtide', 1);
-        r.onupgradeneeded = () => r.result.createObjectStore('rec');
+        const r = indexedDB.open('calmtide', 2);
+        r.onupgradeneeded = () => {
+          const d = r.result;
+          if(!d.objectStoreNames.contains('rec')) d.createObjectStore('rec');
+          if(!d.objectStoreNames.contains('tts')) d.createObjectStore('tts');
+        };
         r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
       }catch(e){ rej(e); }
     });
     return this._p;
   },
-  async req(mode, fn){
+  async req(mode, fn, store = 'rec'){
     const d = await this.open();
     return new Promise((res, rej) => {
-      const t = d.transaction('rec', mode), q = fn(t.objectStore('rec'));
+      const t = d.transaction(store, mode), q = fn(t.objectStore(store));
       t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error);
     });
   },
-  get(k){ return this.req('readonly', s => s.get(k)).catch(() => null); },
-  set(k, v){ return this.req('readwrite', s => s.put(v, k)); },
-  del(k){ return this.req('readwrite', s => s.delete(k)); },
-  keys(){ return this.req('readonly', s => s.getAllKeys()).catch(() => []); }
+  get(k, st){ return this.req('readonly', s => s.get(k), st).catch(() => null); },
+  set(k, v, st){ return this.req('readwrite', s => s.put(v, k), st); },
+  del(k, st){ return this.req('readwrite', s => s.delete(k), st); },
+  keys(st){ return this.req('readonly', s => s.getAllKeys(), st).catch(() => []); }
 };
+
+/* ---------- Natural AI voice (Kokoro, runs on this device) ---------- */
+const KOKORO_URL = 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js';
+const NSPEED = 0.85;
+let nVoice = store.get('ct_nvoice', 'af_heart');
+let useNeural = store.get('ct_useneural', false);
+let nReady = store.get('ct_nready', false);   // model was downloaded before
+let ttsModel = null, ttsLoading = null, genChain = Promise.resolve();
+$('#nVoice').value = nVoice;
+$('#useNeural').checked = useNeural;
+function nStatus(t){ $('#nStatus').textContent = t; }
+function nBar(p){ $('#nBar').hidden = p == null; $('#nBarFill').style.width = (p || 0) + '%'; }
+function nUI(){
+  $('#nEnable').hidden = !!ttsModel;
+  $('#nEnable').textContent = nReady ? '✨ Load natural voice' : '⬇ Download natural voice';
+  $('#nPrepare').hidden = !ttsModel;
+  if(ttsModel) nStatus('✓ Natural voice ready. Affirmations are made once, then saved on this device.');
+}
+async function loadModel(){
+  if(ttsModel) return ttsModel;
+  if(ttsLoading) return ttsLoading;
+  ttsLoading = (async () => {
+    nStatus(nReady ? 'Loading natural voice…' : 'Downloading natural voice… keep this screen open (about 90 MB, one time)');
+    nBar(1);
+    const { KokoroTTS } = await import(KOKORO_URL);
+    const files = {};
+    const m = await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', {
+      dtype: 'q8', device: 'wasm',
+      progress_callback: p => {
+        if(p.status === 'progress' && p.total){ files[p.file] = [p.loaded, p.total];
+          const v = Object.values(files), l = v.reduce((a, x) => a + x[0], 0), t = v.reduce((a, x) => a + x[1], 0);
+          nBar(Math.max(1, Math.round(l / t * 100))); }
+      }
+    });
+    ttsModel = m; nReady = true; store.set('ct_nready', true);
+    nBar(null); nUI();
+    return m;
+  })().catch(e => {
+    ttsLoading = null; nBar(null);
+    nStatus('Could not load the natural voice (' + (e && e.message || 'network error') + '). Check your internet and try again.');
+    throw e;
+  });
+  return ttsLoading;
+}
+const nKey = t => nVoice + '|' + NSPEED + '|' + t;
+// Make (or reuse) natural voice audio for a line. Runs one at a time.
+function neuralAudio(text){
+  const key = nKey(text);
+  const job = genChain.then(async () => {
+    const hit = await db.get(key, 'tts');
+    if(hit) return hit;
+    const m = await loadModel();
+    const audio = await m.generate(text, { voice: nVoice, speed: NSPEED });
+    const blob = audio.toBlob();
+    try{ await db.set(key, blob, 'tts'); }catch(e){}
+    return blob;
+  });
+  genChain = job.catch(() => {});
+  return job;
+}
+$('#nEnable').onclick = async () => {
+  initAudio();
+  try{
+    await loadModel();
+    useNeural = true; store.set('ct_useneural', true); $('#useNeural').checked = true;
+    toast('Natural voice ready'); speak(current());
+  }catch(e){}
+};
+$('#nVoice').onchange = e => { nVoice = e.target.value; store.set('ct_nvoice', nVoice); };
+$('#nPreview').onclick = async () => {
+  initAudio();
+  const sample = 'Hello. Take a slow, deep breath. You are calm, and you are safe.';
+  const was = useNeural; useNeural = true;
+  speak(sample);
+  useNeural = was;
+};
+$('#useNeural').onchange = e => {
+  useNeural = e.target.checked; store.set('ct_useneural', useNeural);
+  if(useNeural && !ttsModel) loadModel().catch(() => {});
+};
+$('#nPrepare').onclick = async () => {
+  const list = all(); let done = 0;
+  $('#nPrepare').disabled = true; nBar(0);
+  for(const t of list){
+    try{ await neuralAudio(t); }catch(e){ break; }
+    done++; nBar(Math.round(done / list.length * 100));
+    nStatus(`Preparing affirmations… ${done} of ${list.length}`);
+  }
+  nBar(null); $('#nPrepare').disabled = false;
+  nStatus(`✓ ${done} affirmations ready in the ${$('#nVoice').selectedOptions[0].textContent.split('·')[0].trim()} voice, saved for offline use.`);
+};
+nUI();
+// If the voice was downloaded before, load it quietly in the background
+if(useNeural && nReady) setTimeout(() => loadModel().catch(() => {}), 1500);
 let recorded = new Set();
 let useMine = store.get('ct_usemine', true);
 $('#useMine').checked = useMine;
@@ -460,14 +591,34 @@ function speak(text, onend, forceMine){
     db.get(text).then(blob => {
       if(id !== speakId) return;
       if(!blob){ deviceVoice(text, id, finish); return; }
-      const url = URL.createObjectURL(blob), a = new Audio(url);
-      curAudio = a; duck(true);
-      a.onended = a.onerror = () => { URL.revokeObjectURL(url); finish(); };
-      a.play().catch(() => { URL.revokeObjectURL(url); deviceVoice(text, id, finish); });
+      playBlob(blob, id, finish, () => deviceVoice(text, id, finish));
     });
     return;
   }
+  if(useNeural && !forceMine){
+    neuralAudio(text).then(blob => {
+      if(id !== speakId) return;
+      playBlob(blob, id, finish, () => deviceVoice(text, id, finish));
+    }).catch(() => { if(id === speakId) deviceVoice(text, id, finish); });
+    return;
+  }
   deviceVoice(text, id, finish);
+}
+// Play a voice clip with a soft touch of room echo; background sounds dip while it plays
+function playBlob(blob, id, finish, fallback){
+  const url = URL.createObjectURL(blob), a = new Audio(url);
+  curAudio = a; duck(true);
+  try{
+    initAudio();
+    if(!playBlob.bus){
+      playBlob.bus = ctx.createGain(); playBlob.bus.gain.value = 1; playBlob.bus.connect(ctx.destination);
+      const send = ctx.createGain(); send.gain.value = 0.18; playBlob.bus.connect(send).connect(reverb);
+    }
+    ctx.createMediaElementSource(a).connect(playBlob.bus);
+  }catch(e){}
+  a.onended = () => { URL.revokeObjectURL(url); finish(); };
+  a.onerror = () => { URL.revokeObjectURL(url); fallback(); };
+  a.play().catch(() => { URL.revokeObjectURL(url); fallback(); });
 }
 function deviceVoice(text, id, finish){
   if(!hasSpeech){ toast('Spoken voice is not supported in this browser'); finish(); return; }
@@ -731,9 +882,46 @@ $('#newAff').addEventListener('keydown', e => { if(e.key === 'Enter') addCustom(
 
 show(); renderLists(); updateTimer();
 
+/* ---------- Cloud sync: keeps the installed app the same as the website ---------- */
+const APP_VERSION = '1.3.0';
+const APP_URL = 'https://ranjanielango033wins.github.io/calm-tide/';
+let latestVersion = null;
+function syncState(cls, label, note){
+  const b = $('#syncBtn'); b.className = 'sync ' + cls; b.textContent = label;
+  $('#syncNote').textContent = note || '';
+}
+const newer = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number);
+  for(let i = 0; i < 3; i++){ if((x[i]||0) !== (y[i]||0)) return (x[i]||0) > (y[i]||0); } return false; };
+async function checkSync(){
+  syncState('', '☁ Checking sync…');
+  try{
+    const r = await fetch(APP_URL + 'version.json?t=' + Date.now(), {cache:'no-store'});
+    const j = await r.json(); latestVersion = j.version;
+    const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    if(newer(latestVersion, APP_VERSION)){
+      syncState('update', '⟳ Update available · tap to sync', `Website has version ${latestVersion}, this app has ${APP_VERSION}.`);
+    } else {
+      syncState('ok', '✓ Synced with website', `Version ${APP_VERSION} · last checked ${time}`);
+    }
+  }catch(e){
+    syncState('off', '☁ Offline', `Showing your saved version ${APP_VERSION}. It will sync when you are online.`);
+  }
+}
+async function applyUpdate(){
+  syncState('', '⟳ Syncing…');
+  try{
+    const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+    if(reg) await reg.update();
+    if(window.caches){ for(const k of await caches.keys()) await caches.delete(k); }
+  }catch(e){}
+  location.reload();
+}
+$('#syncBtn').onclick = () => { if(latestVersion && newer(latestVersion, APP_VERSION)) applyUpdate(); else checkSync(); };
+checkSync();
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') checkSync(); });
+
 /* ---------- Install app button ---------- */
 let deferredPrompt = null;
-const APP_URL = 'https://ranjanielango033wins.github.io/calm-tide/';
 const isStandalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
 if(isStandalone) $('#installBtn').hidden = true;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; });
