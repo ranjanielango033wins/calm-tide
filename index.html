@@ -57,6 +57,17 @@
   select,input[type=text]{background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:12px;padding:9px 12px}
   select option{color:#000}
   input[type=range]{width:100%;accent-color:var(--accent)}
+  .mine{margin-top:18px;padding:14px;border:1px solid var(--line);border-radius:16px;background:rgba(127,214,208,.06)}
+  .mine-head{margin-bottom:10px;line-height:1.5}
+  .mine-head .sub{display:block}
+  .filebtn{display:inline-flex;align-items:center;cursor:pointer;border:1px solid var(--line);background:rgba(255,255,255,.08);border-radius:999px;padding:6px 12px;font-size:14px}
+  .filebtn:hover{background:rgba(255,255,255,.16)}
+  .check{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px;color:var(--muted)}
+  .check input{accent-color:var(--accent);width:18px;height:18px}
+  #recBtn.recording{background:#e46a6a;border-color:#e46a6a;color:#fff;animation:pulse 1.2s infinite}
+  @keyframes pulse{50%{opacity:.6}}
+  .install-help{max-width:520px;margin:12px auto 0;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.07);text-align:left;font-size:14px;line-height:1.6}
+  .tip{font-size:13px;color:var(--muted);margin:12px 0 0;line-height:1.5}
   .settings{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
   .settings label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
   .settings select{width:100%}
@@ -113,6 +124,8 @@
   <header>
     <h1>Calm Tide 🐋</h1>
     <p>Daily affirmations, spoken aloud, with whale song and ocean calm</p>
+    <div class="row" style="margin-top:14px"><button class="primary" id="installBtn">📲 Install app</button></div>
+    <div class="install-help" id="installHelp" hidden></div>
   </header>
 
   <!-- Today's affirmation -->
@@ -127,9 +140,19 @@
       <button id="next" aria-label="Next affirmation">Next ›</button>
       <button id="fav">♡ Save</button>
     </div>
+    <div class="mine">
+      <div class="mine-head">🎙 <b>My voice</b> <span id="recStatus" class="sub">Record this affirmation in your own voice, or upload audio</span></div>
+      <div class="row" style="justify-content:flex-start">
+        <button id="recBtn" class="small">🎙 Record</button>
+        <button id="recPlay" class="small" disabled>▶ Play</button>
+        <button id="recDel" class="small" disabled>🗑 Delete</button>
+        <label class="small filebtn">⬆ Upload audio<input type="file" id="recFile" accept="audio/*" hidden></label>
+      </div>
+      <label class="check"><input type="checkbox" id="useMine" checked> Play my recordings instead of the device voice</label>
+    </div>
     <div class="settings">
       <div>
-        <label for="voice">Voice</label>
+        <label for="voice">Device voice</label>
         <select id="voice"><option>Loading voices…</option></select>
       </div>
       <div>
@@ -142,6 +165,7 @@
         </select>
       </div>
     </div>
+    <p class="tip" id="voiceTip"></p>
   </section>
 
   <!-- Meditation -->
@@ -264,6 +288,7 @@ function show(){
   const saved = favs.includes(t);
   $('#fav').classList.toggle('on', saved);
   $('#fav').textContent = saved ? '♥ Saved' : '♡ Save';
+  if(typeof updateRecUI === 'function') updateRecUI();
 }
 $('#prev').onclick = () => { idx--; show(); };
 $('#next').onclick = () => { idx++; show(); };
@@ -277,15 +302,30 @@ $('#fav').onclick = () => {
 
 /* ---------- Voice ---------- */
 let voices = [], voice = null, rate = 0.78;
-// Soft, natural sounding voices are ranked first
+// Human sounding voices are ranked first; old robotic voices go to the bottom
 function voiceScore(v){
+  const n = v.name;
   let s = 0;
-  if(/natural|neural|enhanced|premium|online/i.test(v.name)) s += 10;
-  if(/female|samantha|serena|karen|moira|tessa|libby|sonia|aria|jenny|natasha|zira|ava|allison|susan|google uk english female/i.test(v.name)) s += 5;
+  if(/natural|neural|premium|enhanced|siri|online/i.test(n)) s += 20;
+  if(/google uk english female/i.test(n)) s += 9;
+  if(/google/i.test(n) && !v.localService) s += 4;
+  if(/female|samantha|serena|karen|moira|tessa|libby|sonia|aria|jenny|ava|allison|susan|emma|michelle|natasha|clara|neerja/i.test(n)) s += 5;
   if(/en[-_](GB|AU|IE|IN)/i.test(v.lang)) s += 1;
-  if(/male\b|daniel|fred|alex\b|david|mark|guy|ryan/i.test(v.name) && !/female/i.test(v.name)) s -= 3;
+  if(/^microsoft (david|mark|zira|hazel|george|susan|heera|ravi)\b/i.test(n) && !/online|natural/i.test(n)) s -= 15;
+  if(/espeak|fred|albert|bad news|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|junior|ralph|kathy|bahh/i.test(n)) s -= 30;
+  if(/\bmale\b|daniel|alex\b|guy|ryan|thomas|aaron/i.test(n) && !/female/i.test(n)) s -= 4;
   return s;
 }
+function voiceTip(){
+  const ua = navigator.userAgent;
+  if(/iPhone|iPad|iPod/i.test(ua)) return '💡 For a human sounding voice on iPhone: Settings › Accessibility › Spoken Content › Voices › English, download a Premium or Enhanced voice (for example Ava or Serena), then reopen this app and pick it above.';
+  if(/Android/i.test(ua)) return '💡 For a human sounding voice on Android: Settings › search "Text to speech" › choose Speech Services by Google › Install voice data › English, then pick a high quality voice. Reopen this app and choose it above.';
+  if(/Edg\//.test(ua)) return '💡 Pick a voice marked "Online (Natural)", such as Aria, Jenny or Sonia, for the most human sound.';
+  if(/Windows/i.test(ua)) return '💡 On Windows, open this app in Microsoft Edge to get very human sounding "Natural" voices such as Aria, Jenny and Sonia.';
+  if(/Mac/i.test(ua)) return '💡 On Mac: System Settings › Accessibility › Spoken Content › System voice › Manage Voices, download a Premium English voice, then pick it above.';
+  return '💡 For the most human sound, record the affirmations in your own voice above.';
+}
+$('#voiceTip').textContent = voiceTip();
 const hasSpeech = 'speechSynthesis' in window;
 function loadVoices(){
   if(!hasSpeech){ $('#voice').innerHTML = '<option>Voice not supported in this browser</option>'; return; }
@@ -294,7 +334,12 @@ function loadVoices(){
   if(!voices.length) voices = allV;
   voices.sort((a, b) => voiceScore(b) - voiceScore(a));
   const sel = $('#voice'); sel.innerHTML = '';
-  voices.forEach((v, i) => { const o = document.createElement('option'); o.value = i; o.textContent = `${v.name} (${v.lang})`; sel.appendChild(o); });
+  voices.forEach((v, i) => {
+    const o = document.createElement('option'); o.value = i;
+    const sc = voiceScore(v);
+    o.textContent = (sc >= 20 ? '★ Natural · ' : sc < 0 ? 'Robotic · ' : '') + `${v.name} (${v.lang})`;
+    sel.appendChild(o);
+  });
   const saved = store.get('ct_voice', '');
   let pick = voices.findIndex(v => v.name === saved);
   if(pick < 0) pick = 0; // best soothing voice is first after sorting
@@ -316,19 +361,119 @@ function hideCaption(delay){
   captionT = setTimeout(() => $('#caption').classList.remove('show'), delay);
 }
 
-function stopSpeech(){ speakId++; if(hasSpeech) speechSynthesis.cancel(); duck(false); }
+let curAudio = null;
+function stopSpeech(){
+  speakId++;
+  if(hasSpeech) speechSynthesis.cancel();
+  if(curAudio){ curAudio.pause(); curAudio = null; }
+  duck(false);
+}
 
-// Speak slowly and softly, with a gentle pause at each comma and full stop
+/* ---------- My voice recordings (kept on this device) ---------- */
+const db = {
+  _p: null,
+  open(){
+    if(!this._p) this._p = new Promise((res, rej) => {
+      try{
+        const r = indexedDB.open('calmtide', 1);
+        r.onupgradeneeded = () => r.result.createObjectStore('rec');
+        r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+      }catch(e){ rej(e); }
+    });
+    return this._p;
+  },
+  async req(mode, fn){
+    const d = await this.open();
+    return new Promise((res, rej) => {
+      const t = d.transaction('rec', mode), q = fn(t.objectStore('rec'));
+      t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error);
+    });
+  },
+  get(k){ return this.req('readonly', s => s.get(k)).catch(() => null); },
+  set(k, v){ return this.req('readwrite', s => s.put(v, k)); },
+  del(k){ return this.req('readwrite', s => s.delete(k)); },
+  keys(){ return this.req('readonly', s => s.getAllKeys()).catch(() => []); }
+};
+let recorded = new Set();
+let useMine = store.get('ct_usemine', true);
+$('#useMine').checked = useMine;
+$('#useMine').onchange = e => { useMine = e.target.checked; store.set('ct_usemine', useMine); };
+db.keys().then(k => { recorded = new Set(k || []); updateRecUI(); });
+
+function updateRecUI(){
+  const has = recorded.has(current());
+  $('#recPlay').disabled = !has; $('#recDel').disabled = !has;
+  if(!recording) $('#recStatus').textContent = has
+    ? '✓ This affirmation will play in your recorded voice'
+    : 'Record this affirmation in your own voice, or upload audio';
+}
+async function saveRecording(blob){
+  const t = current();
+  try{
+    await db.set(t, blob); recorded.add(t); updateRecUI();
+    toast('Saved. This affirmation will play in your voice');
+  }catch(e){ toast('Could not save the recording on this device'); }
+}
+let recorder = null, recording = false, recChunks = [];
+$('#recBtn').onclick = async () => {
+  if(recording){ recorder.stop(); return; }
+  try{
+    stopSpeech();
+    const stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true}});
+    recChunks = [];
+    recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = e => { if(e.data.size) recChunks.push(e.data); };
+    recorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      recording = false; $('#recBtn').classList.remove('recording'); $('#recBtn').textContent = '🎙 Record';
+      const blob = new Blob(recChunks, {type: recorder.mimeType || 'audio/webm'});
+      if(blob.size > 1000) saveRecording(blob); else updateRecUI();
+    };
+    recorder.start(); recording = true;
+    $('#recBtn').classList.add('recording'); $('#recBtn').textContent = '⏹ Stop';
+    $('#recStatus').textContent = 'Recording… read the affirmation slowly and softly, then tap Stop';
+  }catch(e){
+    toast('Microphone not available. Open the app from its link and allow the microphone.');
+  }
+};
+$('#recPlay').onclick = () => { initAudio(); speak(current(), null, true); };
+$('#recDel').onclick = async () => {
+  const t = current();
+  try{ await db.del(t); }catch(e){}
+  recorded.delete(t); updateRecUI(); toast('Recording deleted');
+};
+$('#recFile').onchange = e => {
+  const f = e.target.files && e.target.files[0];
+  if(f) saveRecording(f);
+  e.target.value = '';
+};
+
+// Speak slowly and softly, with a gentle pause at each comma and full stop.
+// If you recorded this affirmation, your own voice plays instead.
 let speakId = 0;
-function speak(text, onend){
+function speak(text, onend, forceMine){
   showCaption(text);
-  if(!hasSpeech){ toast('Spoken voice is not supported in this browser'); hideCaption(6000); onend && onend(); return; }
-  speechSynthesis.cancel();
+  stopSpeech();
   const id = ++speakId;
+  const finish = () => { if(id !== speakId) return; duck(false); curAudio = null; hideCaption(sess.running ? 9000 : 5000); onend && onend(); };
+  if((useMine || forceMine) && recorded.has(text)){
+    db.get(text).then(blob => {
+      if(id !== speakId) return;
+      if(!blob){ deviceVoice(text, id, finish); return; }
+      const url = URL.createObjectURL(blob), a = new Audio(url);
+      curAudio = a; duck(true);
+      a.onended = a.onerror = () => { URL.revokeObjectURL(url); finish(); };
+      a.play().catch(() => { URL.revokeObjectURL(url); deviceVoice(text, id, finish); });
+    });
+    return;
+  }
+  deviceVoice(text, id, finish);
+}
+function deviceVoice(text, id, finish){
+  if(!hasSpeech){ toast('Spoken voice is not supported in this browser'); finish(); return; }
   const parts = text.split(/(?<=[,.;!?])\s+/).filter(Boolean);
   let i = 0;
   duck(true);
-  const finish = () => { if(id !== speakId) return; duck(false); hideCaption(sess.running ? 9000 : 5000); onend && onend(); };
   const next = () => {
     if(id !== speakId) return;
     if(i >= parts.length){ finish(); return; }
@@ -585,6 +730,29 @@ $('#addBtn').onclick = addCustom;
 $('#newAff').addEventListener('keydown', e => { if(e.key === 'Enter') addCustom(); });
 
 show(); renderLists(); updateTimer();
+
+/* ---------- Install app button ---------- */
+let deferredPrompt = null;
+const APP_URL = 'https://ranjanielango033wins.github.io/calm-tide/';
+const isStandalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
+if(isStandalone) $('#installBtn').hidden = true;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; });
+window.addEventListener('appinstalled', () => { $('#installBtn').hidden = true; $('#installHelp').hidden = true; toast('Installed! Find Calm Tide on your home screen'); });
+function installSteps(){
+  const ua = navigator.userAgent;
+  if(!location.hostname.endsWith('github.io')) return `To install, open the app link: <b>${APP_URL}</b>`;
+  if(/iPhone|iPad|iPod/i.test(ua)) return '<b>iPhone:</b> open this page in <b>Safari</b>, tap the <b>Share</b> button (square with arrow), scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>.';
+  if(/Android/i.test(ua)) return '<b>Android:</b> in <b>Chrome</b>, tap the <b>⋮</b> menu at the top right, then <b>Install app</b> (or <b>Add to Home screen</b>) and confirm.';
+  return '<b>Computer (Chrome):</b> click the <b>install icon</b> at the right end of the address bar, or open <b>⋮</b> › <b>Cast, save and share</b> › <b>Install page as app</b>. It opens in its own window; right click its taskbar icon and choose <b>Pin to taskbar</b>.';
+}
+$('#installBtn').onclick = async () => {
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    try{ await deferredPrompt.userChoice; }catch(e){}
+    deferredPrompt = null; return;
+  }
+  const h = $('#installHelp'); h.innerHTML = installSteps(); h.hidden = !h.hidden;
+};
 
 /* ---------- Installable mobile app (works when hosted, e.g. GitHub Pages) ---------- */
 try{
