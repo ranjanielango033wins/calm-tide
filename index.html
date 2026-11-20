@@ -99,6 +99,23 @@
   .m-mean{text-align:center;color:var(--muted);font-size:14px;margin:10px 0 14px;line-height:1.5}
   .m-count{text-align:center;font-size:15px;margin-top:10px;color:#f6c9a8;min-height:1.3em;font-weight:600}
   #mCount{border-radius:999px;padding:9px 12px}
+  .lib li{flex-wrap:wrap}
+  .lib li .meta{flex:1 1 160px;min-width:0}
+  .lib li .meta b{display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lib li .meta small{color:var(--muted);font-size:12px}
+  .lib li.playing .meta b{color:#f6c9a8}
+  .player[hidden],.listen[hidden]{display:none}
+  .list li span.tag{flex:none;font-family:Nunito,system-ui,sans-serif}
+  .tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:99px;background:rgba(246,201,168,.18);color:#f6c9a8;margin-left:4px}
+  .player{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);width:min(680px,calc(100% - 20px));z-index:50;
+    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:18px;border:1px solid #f6c9a8;
+    background:rgba(8,26,48,.94);backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .player .pinfo{flex:1;min-width:0}
+  .player .pinfo b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .player .pinfo small{color:var(--muted);font-size:12px}
+  .player input[type=range]{margin:4px 0 0}
+  .player button{padding:8px 12px}
+  body.has-player .wrap{padding-bottom:120px}
   .install-help{max-width:520px;margin:12px auto 0;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.07);text-align:left;font-size:14px;line-height:1.6}
   .tip{font-size:13px;color:var(--muted);margin:12px 0 0;line-height:1.5}
   .settings{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
@@ -159,6 +176,7 @@
     <p>Daily affirmations, spoken aloud, with whale song and ocean calm</p>
     <div class="row" style="margin-top:14px">
       <button class="primary" id="installBtn">📲 Install app</button>
+      <label class="filebtn" style="padding:10px 16px;font-size:16px;border-color:#f6c9a8">🎵 Add songs<input type="file" id="topFile" accept="audio/*,video/*" multiple hidden></label>
       <button class="sync" id="syncBtn" title="Check that this app matches the website">☁ Checking sync…</button>
     </div>
     <p class="sync-note" id="syncNote"></p>
@@ -308,10 +326,24 @@
           </select>
         </div>
       </div>
-      <div class="row" style="margin-top:12px"><a class="listen" id="mListen" href="#" target="_blank" rel="noopener">🎵 Listen to famous rendition</a></div>
+      <div class="row" style="margin-top:12px">
+        <button class="listen" id="mMyPlay" hidden>🎵 Play my audio</button>
+        <label class="small filebtn">⬆ Add my audio for this mantra<input type="file" id="mFile" accept="audio/*,video/*" hidden></label>
+      </div>
       <p class="tip" id="mTip"></p>
     </div>
     <div class="mrow" id="mRow"></div>
+  </section>
+
+  <!-- My audio library -->
+  <section class="card" id="library">
+    <h2>🎵 My audio library</h2>
+    <p class="sub">Add songs, chants or videos saved on this device, like your favourite Suprabhatam. They play right here in the app, work offline, and keep playing when your screen is locked.</p>
+    <div class="row" style="justify-content:flex-start;margin-top:12px">
+      <label class="filebtn" style="border-color:var(--accent)">⬆ Add audio or video<input type="file" id="libFile" accept="audio/*,video/*" multiple hidden></label>
+    </div>
+    <ul class="list lib" id="libList"></ul>
+    <p class="tip" id="libTip">💡 Files are kept on this device so they play offline. Add the same file once on each of your devices.</p>
   </section>
 
   </aside>
@@ -319,6 +351,13 @@
 
   <footer>Made with care · Sounds are generated live in your browser</footer>
 </div>
+<div class="player" id="player" hidden>
+  <button id="pPlay" aria-label="Play or pause">⏸</button>
+  <div class="pinfo"><b id="pTitle"></b><input type="range" id="pSeek" min="0" max="1000" value="0" aria-label="Position"><small id="pTime"></small></div>
+  <button id="pLoop" aria-label="Repeat">🔁</button>
+  <button id="pClose" aria-label="Close player">✕</button>
+</div>
+<audio id="audioEl" preload="auto" playsinline></audio>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -481,11 +520,12 @@ const db = {
   open(){
     if(!this._p) this._p = new Promise((res, rej) => {
       try{
-        const r = indexedDB.open('calmtide', 2);
+        const r = indexedDB.open('calmtide', 3);
         r.onupgradeneeded = () => {
           const d = r.result;
           if(!d.objectStoreNames.contains('rec')) d.createObjectStore('rec');
           if(!d.objectStoreNames.contains('tts')) d.createObjectStore('tts');
+          if(!d.objectStoreNames.contains('media')) d.createObjectStore('media');
         };
         r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
       }catch(e){ rej(e); }
@@ -502,7 +542,8 @@ const db = {
   get(k, st){ return this.req('readonly', s => s.get(k), st).catch(() => null); },
   set(k, v, st){ return this.req('readwrite', s => s.put(v, k), st); },
   del(k, st){ return this.req('readwrite', s => s.delete(k), st); },
-  keys(st){ return this.req('readonly', s => s.getAllKeys(), st).catch(() => []); }
+  keys(st){ return this.req('readonly', s => s.getAllKeys(), st).catch(() => []); },
+  all(st){ return this.req('readonly', s => s.getAll(), st).catch(() => []); }
 };
 
 /* ---------- Natural AI voice ----------
@@ -818,6 +859,9 @@ const MANTRAS = [
    dev:'ॐ त्र्यम्बकं यजामहे सुगन्धिं पुष्टिवर्धनम्। उर्वारुकमिव बन्धनान्मृत्योर्मुक्षीय माऽमृतात्॥',
    tr:'Om Tryambakam Yajamahe, Sugandhim Pushtivardhanam, Urvarukamiva Bandhanan, Mrityor Mukshiya Maamritat',
    mean:'We worship the three eyed One who nourishes all. May He free us from fear, as a ripe fruit falls freely from the vine.'},
+  {name:'Ashwini Kumaras Mantra', about:'Good health and wealth',
+   dev:'ॐ अश्विनीकुमाराभ्यां नमः', tr:'Om Ashwini Kumarabhyam Namah',
+   mean:'Salutations to the Ashwini Kumaras, the divine twin healers, who bless us with good health, vitality and prosperity.'},
   {name:'Om Gam Ganapataye Namaha', about:'New beginnings, removing obstacles',
    dev:'ॐ गं गणपतये नमः', tr:'Om Gam Ganapataye Namaha',
    mean:'Salutations to Lord Ganesha, the remover of obstacles.'},
@@ -857,8 +901,7 @@ function renderMantras(){
   });
   const m = MANTRAS[mIdx];
   $('#mDev').textContent = m.dev; $('#mTr').textContent = m.tr; $('#mMean').textContent = m.mean;
-  $('#mListen').href = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(m.listen || (m.name + ' chanting'));
-  $('#mListen').textContent = /Subbulakshmi/.test(m.listen || '') ? '🎵 Listen to M.S. Subbulakshmi' : '🎵 Listen to famous rendition';
+  if(window.calmLibReady) updateMantraAudio();
   if(!mChanting) $('#mCounter').textContent = '';
 }
 // Most soothing Hindi voices first: natural female voices such as Swara, Lekha and Google Hindi
@@ -892,6 +935,8 @@ function stopMantra(){
   $('#mPlay').disabled = false; $('#mStop').disabled = true;
 }
 function chantMantra(){
+  const mine = mantraTrack();
+  if(mine){ playTrack(mine, +$('#mCount').value); return; }
   if(!hasSpeech){ toast('Spoken voice is not supported in this browser'); return; }
   initAudio(); stopSpeech();
   const m = MANTRAS[mIdx], n = +$('#mCount').value, rate = +$('#mRate').value;
@@ -921,6 +966,120 @@ $('#mStop').onclick = () => { stopMantra(); $('#mCounter').textContent = ''; };
 $('#mDrone').onclick = () => setSound('tanpura', !state.tanpura.on);
 renderMantras(); loadMantraVoices();
 if(hasSpeech) speechSynthesis.addEventListener('voiceschanged', loadMantraVoices);
+
+/* ---------- My audio library and player (offline, keeps playing with the screen locked) ---------- */
+const audioEl = $('#audioEl');
+let lib = [], curTrack = null, curUrl = null, loopsLeft = 0, loopTotal = 1, loopAll = false;
+window.calmLibReady = true;
+const fmtSize = b => b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
+const fmtT = s => isFinite(s) ? Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0') : '0:00';
+async function libLoad(){
+  lib = (await db.all('media')).filter(Boolean).sort((a, b) => a.added - b.added);
+  renderLib(); updateMantraAudio();
+}
+function mantraTrack(){ const n = MANTRAS[mIdx].name; return lib.slice().reverse().find(t => t.mantra === n) || null; }
+function updateMantraAudio(){
+  const t = mantraTrack(), b = $('#mMyPlay');
+  if(!b) return;
+  b.hidden = !t;
+  if(t) b.textContent = '🎵 Play my audio: ' + t.name;
+}
+function renderLib(){
+  const ul = $('#libList'); ul.innerHTML = '';
+  if(!lib.length){ ul.innerHTML = '<li class="empty">No audio yet. Tap "Add audio or video" to add your first one.</li>'; return; }
+  lib.forEach(t => {
+    const li = document.createElement('li'); if(curTrack && curTrack.id === t.id) li.className = 'playing';
+    const meta = document.createElement('div'); meta.className = 'meta';
+    const b = document.createElement('b'); b.textContent = t.name;
+    const s = document.createElement('small'); s.textContent = fmtSize(t.size) + (t.type.startsWith('video') ? ' · video, audio only' : '');
+    if(t.mantra){ const g = document.createElement('span'); g.className = 'tag'; g.textContent = t.mantra; s.appendChild(g); }
+    meta.append(b, s);
+    const play = document.createElement('button'); play.className = 'small'; play.textContent = (curTrack && curTrack.id === t.id && !audioEl.paused) ? '⏸' : '▶';
+    play.onclick = () => (curTrack && curTrack.id === t.id) ? togglePlay() : playTrack(t, 1);
+    const del = document.createElement('button'); del.className = 'small'; del.textContent = '🗑';
+    del.setAttribute('aria-label', 'Delete ' + t.name);
+    del.onclick = async () => {
+      if(del.dataset.sure !== '1'){ del.dataset.sure = '1'; del.textContent = 'Delete?'; setTimeout(() => { del.dataset.sure = ''; del.textContent = '🗑'; }, 3000); return; }
+      if(curTrack && curTrack.id === t.id) closePlayer();
+      try{ await db.del(t.id, 'media'); }catch(e){}
+      toast('Removed'); libLoad();
+    };
+    li.append(meta, play, del); ul.appendChild(li);
+  });
+}
+async function addFiles(files, mantraName){
+  if(!files || !files.length) return;
+  try{ if(navigator.storage && navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
+  let n = 0;
+  for(const f of files){
+    const rec = { id: 'm' + Date.now() + Math.random().toString(36).slice(2, 7), name: f.name.replace(/\.[^.]+$/, ''),
+      type: f.type || 'audio/mpeg', size: f.size, blob: f, mantra: mantraName || '', added: Date.now() };
+    try{ await db.set(rec.id, rec, 'media'); n++; }
+    catch(e){ toast('Not enough space on this device for ' + f.name); }
+  }
+  if(n){ toast(n === 1 ? 'Added to your library' : n + ' files added'); await libLoad(); }
+}
+$('#libFile').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
+$('#topFile').onchange = async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  await addFiles(files);
+  $('#library').scrollIntoView({behavior: 'smooth', block: 'start'});
+};
+$('#mFile').onchange = e => { addFiles([...e.target.files], MANTRAS[mIdx].name); e.target.value = ''; };
+$('#mMyPlay').onclick = () => { const t = mantraTrack(); if(t) playTrack(t, +$('#mCount').value); };
+
+function playTrack(t, times){
+  stopSpeech();
+  if(curUrl) URL.revokeObjectURL(curUrl);
+  curTrack = t; curUrl = URL.createObjectURL(t.blob);
+  loopTotal = Math.max(1, times || 1); loopsLeft = loopTotal - 1;
+  audioEl.src = curUrl; audioEl.currentTime = 0;
+  audioEl.play().catch(() => toast('Tap play to start'));
+  $('#player').hidden = false; document.body.classList.add('has-player');
+  $('#pTitle').textContent = t.name;
+  if('mediaSession' in navigator){
+    try{
+      navigator.mediaSession.metadata = new MediaMetadata({ title: t.name, artist: 'Calm Tide', album: t.mantra || 'My audio library',
+        artwork: [{ src: 'icon.svg', sizes: '512x512', type: 'image/svg+xml' }] });
+      navigator.mediaSession.setActionHandler('play', () => audioEl.play());
+      navigator.mediaSession.setActionHandler('pause', () => audioEl.pause());
+      navigator.mediaSession.setActionHandler('stop', closePlayer);
+      navigator.mediaSession.setActionHandler('seekto', d => { audioEl.currentTime = d.seekTime; });
+      navigator.mediaSession.setActionHandler('seekbackward', () => { audioEl.currentTime = Math.max(0, audioEl.currentTime - 10); });
+      navigator.mediaSession.setActionHandler('seekforward', () => { audioEl.currentTime = Math.min(audioEl.duration || 0, audioEl.currentTime + 10); });
+    }catch(e){}
+  }
+  updatePlayer(); renderLib();
+}
+function togglePlay(){ audioEl.paused ? audioEl.play() : audioEl.pause(); }
+function closePlayer(){
+  audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load();
+  if(curUrl){ URL.revokeObjectURL(curUrl); curUrl = null; }
+  curTrack = null; $('#player').hidden = true; document.body.classList.remove('has-player');
+  $('#mCounter').textContent = ''; renderLib();
+}
+function updatePlayer(){
+  $('#pPlay').textContent = audioEl.paused ? '▶' : '⏸';
+  $('#pLoop').classList.toggle('on', loopAll);
+  const d = audioEl.duration, c = audioEl.currentTime;
+  $('#pSeek').value = d ? Math.round(c / d * 1000) : 0;
+  const rep = loopTotal > 1 ? ` · ${loopTotal - loopsLeft} of ${loopTotal}` : '';
+  $('#pTime').textContent = fmtT(c) + ' / ' + fmtT(d) + rep;
+  if(curTrack && curTrack.mantra && loopTotal > 1) $('#mCounter').textContent = `🪷 Chant ${loopTotal - loopsLeft} of ${loopTotal}`;
+}
+audioEl.addEventListener('timeupdate', updatePlayer);
+audioEl.addEventListener('play', () => { updatePlayer(); renderLib(); if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
+audioEl.addEventListener('pause', () => { updatePlayer(); renderLib(); if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
+audioEl.addEventListener('ended', () => {
+  if(loopsLeft > 0 || loopAll){ if(loopsLeft > 0) loopsLeft--; audioEl.currentTime = 0; audioEl.play(); updatePlayer(); }
+  else { updatePlayer(); if(curTrack && curTrack.mantra && loopTotal > 1) $('#mCounter').textContent = `🙏 ${loopTotal} chants complete`; }
+});
+audioEl.addEventListener('error', () => { if(curTrack) toast('This file type cannot play here. Try an MP3 or M4A version.'); });
+$('#pPlay').onclick = togglePlay;
+$('#pLoop').onclick = () => { loopAll = !loopAll; updatePlayer(); toast(loopAll ? 'Repeat on' : 'Repeat off'); };
+$('#pClose').onclick = closePlayer;
+$('#pSeek').oninput = e => { if(audioEl.duration) audioEl.currentTime = e.target.value / 1000 * audioEl.duration; };
+libLoad();
 
 /* ---------- Audio engine (all sounds generated live) ---------- */
 let ctx, master, reverb, chimeBus, noise = {};
@@ -1184,7 +1343,7 @@ $('#newAff').addEventListener('keydown', e => { if(e.key === 'Enter') addCustom(
 show(); renderLists(); updateTimer();
 
 /* ---------- Cloud sync: keeps the installed app the same as the website ---------- */
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 const APP_URL = 'https://ranjanielango033wins.github.io/calm-tide/';
 let latestVersion = null;
 function syncState(cls, label, note){
