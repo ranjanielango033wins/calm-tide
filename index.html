@@ -524,13 +524,22 @@ function generate(text, voice, prio){
   return engine().then(() => new Promise((res, rej) => { queue.push({id: ++jobId, text, voice, prio, res, rej}); pump(); }));
 }
 // Get natural voice audio for a line: built in pack first, then saved copy, then the engine
-async function neuralClip(text, prio){
+const making = new Set();
+async function neuralClip(text, prio, wait = true){
   const v = nVoice, key = v + '|' + NSPEED + '|' + text;
   const pack = await loadPack(v);
   if(pack && pack.clips && pack.clips[text]) return new Blob([b64ToBuf(pack.clips[text])], {type: pack.mime || 'audio/mpeg'});
   const hit = await db.get(key, 'tts');
   if(hit) return hit;
   if(!nReady && !engineOn) throw new Error('needs-engine');
+  if(!wait){
+    // Make it quietly in the background so it is ready next time
+    if(!making.has(key)){
+      making.add(key);
+      generate(text, v, prio).then(b => db.set(key, b, 'tts')).catch(() => {}).finally(() => making.delete(key));
+    }
+    throw new Error('making');
+  }
   const blob = await generate(text, v, prio);
   try{ await db.set(key, blob, 'tts'); }catch(e){}
   return blob;
@@ -651,8 +660,8 @@ function speak(text, onend, forceMine){
     return;
   }
   if(useNeural && !forceMine){
-    const slow = setTimeout(() => { if(id === speakId) nStatus('Creating the natural voice for this line… first time only'); }, 900);
-    neuralClip(text, 2).then(blob => {
+    const slow = setTimeout(() => {}, 0);
+    neuralClip(text, 2, false).then(blob => {
       clearTimeout(slow);
       if(id !== speakId) return;
       if(!$('#nPrepare').disabled) nUI();
@@ -661,6 +670,7 @@ function speak(text, onend, forceMine){
       clearTimeout(slow);
       if(id !== speakId) return;
       if(e && e.message === 'needs-engine') nStatus('This line is not built in, so the device voice is used. Tap "Download voice engine" to hear your own affirmations in the natural voice.');
+      if(e && e.message === 'making') nStatus('✨ A natural version of this line is being made in the background. Next time it plays in the natural voice.');
       deviceVoice(text, id, finish);
     });
     return;
@@ -949,7 +959,7 @@ $('#newAff').addEventListener('keydown', e => { if(e.key === 'Enter') addCustom(
 show(); renderLists(); updateTimer();
 
 /* ---------- Cloud sync: keeps the installed app the same as the website ---------- */
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.4.1';
 const APP_URL = 'https://ranjanielango033wins.github.io/calm-tide/';
 let latestVersion = null;
 function syncState(cls, label, note){
