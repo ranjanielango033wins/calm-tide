@@ -156,7 +156,7 @@
     </div>
     <div class="mine neural">
       <div class="mine-head">✨ <b>Natural voice</b> <span class="badge">Human sounding</span>
-        <span id="nStatus" class="sub">A calm, realistic AI voice that runs on your device. One time download of about 90 MB, then it works offline.</span></div>
+        <span id="nStatus" class="sub">Heart and Nicole are built in: calm, human sounding voices that work instantly on any phone.</span></div>
       <div class="row" style="justify-content:flex-start">
         <select id="nVoice" aria-label="Natural voice">
           <option value="af_heart">💛 Heart · warm and gentle (recommended)</option>
@@ -432,99 +432,154 @@ const db = {
   keys(st){ return this.req('readonly', s => s.getAllKeys(), st).catch(() => []); }
 };
 
-/* ---------- Natural AI voice (Kokoro, runs on this device) ---------- */
+/* ---------- Natural AI voice ----------
+   1) Ready-made voice packs ship with the app, so they play instantly on every phone with no download.
+   2) For your own affirmations (and the Bella and Emma voices) an optional voice engine (Kokoro)
+      runs in a background worker, so the app never freezes while it works. */
 const KOKORO_URL = 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js';
 const NSPEED = 0.85;
+const PACKS = { af_heart: 'voices/af_heart.json', af_nicole: 'voices/af_nicole.json' };
 let nVoice = store.get('ct_nvoice', 'af_heart');
-let useNeural = store.get('ct_useneural', false);
-let nReady = store.get('ct_nready', false);   // model was downloaded before
-let ttsModel = null, ttsLoading = null, genChain = Promise.resolve();
+let useNeural = store.get('ct_useneural2', true);   // on by default: built in voices need no download
+let nReady = store.get('ct_nready', false);         // voice engine was downloaded on this device before
+let engineOn = false;
+const packs = {};
 $('#nVoice').value = nVoice;
 $('#useNeural').checked = useNeural;
 function nStatus(t){ $('#nStatus').textContent = t; }
 function nBar(p){ $('#nBar').hidden = p == null; $('#nBarFill').style.width = (p || 0) + '%'; }
 function nUI(){
-  $('#nEnable').hidden = !!ttsModel;
-  $('#nEnable').textContent = nReady ? '✨ Load natural voice' : '⬇ Download natural voice';
-  $('#nPrepare').hidden = !ttsModel;
-  if(ttsModel) nStatus('✓ Natural voice ready. Affirmations are made once, then saved on this device.');
+  $('#nEnable').hidden = engineOn;
+  $('#nEnable').textContent = nReady ? '✨ Load voice engine' : '⬇ Download voice engine (optional)';
+  $('#nPrepare').hidden = !engineOn;
+  if(engineOn) nStatus('✓ Voice engine ready. New lines are made once, then saved on this device.');
+  else nStatus(PACKS[nVoice]
+    ? '✓ This voice is built in and ready on every device, no download needed. Only your own affirmations need the optional voice engine (about 90 MB, one time).'
+    : 'This voice needs the optional voice engine (about 90 MB, one time). Heart and Nicole are built in and need no download.');
 }
-async function loadModel(){
-  if(ttsModel) return ttsModel;
-  if(ttsLoading) return ttsLoading;
-  ttsLoading = (async () => {
-    nStatus(nReady ? 'Loading natural voice…' : 'Downloading natural voice… keep this screen open (about 90 MB, one time)');
-    nBar(1);
-    const { KokoroTTS } = await import(KOKORO_URL);
-    const files = {};
-    const m = await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', {
-      dtype: 'q8', device: 'wasm',
-      progress_callback: p => {
-        if(p.status === 'progress' && p.total){ files[p.file] = [p.loaded, p.total];
+function loadPack(v){
+  if(!PACKS[v]) return Promise.resolve(null);
+  if(!packs[v]) packs[v] = fetch(PACKS[v]).then(r => { if(!r.ok) throw new Error('pack ' + r.status); return r.json(); })
+    .catch(() => { delete packs[v]; return null; });
+  return packs[v];
+}
+function b64ToBuf(b){ const s = atob(b), u = new Uint8Array(s.length); for(let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u.buffer; }
+
+// Voice engine in a background worker
+const WORKER_SRC = `
+let tts = null;
+self.onmessage = async e => {
+  const m = e.data;
+  try{
+    if(m.type === 'load'){
+      const { KokoroTTS } = await import('${KOKORO_URL}');
+      const files = {};
+      tts = await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', { dtype: 'q8', device: 'wasm',
+        progress_callback: p => { if(p.status === 'progress' && p.total){ files[p.file] = [p.loaded, p.total];
           const v = Object.values(files), l = v.reduce((a, x) => a + x[0], 0), t = v.reduce((a, x) => a + x[1], 0);
-          nBar(Math.max(1, Math.round(l / t * 100))); }
+          self.postMessage({type: 'progress', pct: Math.round(l / t * 100)}); } } });
+      self.postMessage({type: 'loaded'});
+    } else if(m.type === 'gen'){
+      const audio = await tts.generate(m.text, { voice: m.voice, speed: m.speed });
+      let buf = audio.toWav();
+      if(!(buf instanceof ArrayBuffer)) buf = await audio.toBlob().arrayBuffer();
+      self.postMessage({type: 'done', id: m.id, buf}, [buf]);
+    }
+  }catch(err){ self.postMessage({type: m.type === 'gen' ? 'fail' : 'loadfail', id: m.id, error: String(err && err.message || err)}); }
+};`;
+let worker = null, engineP = null, jobId = 0, queue = [], busy = null;
+function engine(){
+  if(engineP) return engineP;
+  engineP = new Promise((res, rej) => {
+    nStatus(nReady ? 'Loading voice engine…' : 'Downloading voice engine… keep this screen open (about 90 MB, one time)');
+    nBar(1);
+    const fail = msg => { nBar(null); engineP = null; worker && worker.terminate(); worker = null;
+      nStatus('Could not load the voice engine (' + msg + '). Check your internet and try again.'); rej(new Error(msg)); };
+    try{ worker = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], {type: 'text/javascript'})), {type: 'module'}); }
+    catch(e){ fail(e.message); return; }
+    worker.onerror = e => fail(e.message || 'worker error');
+    worker.onmessage = e => {
+      const m = e.data;
+      if(m.type === 'progress') nBar(Math.max(1, m.pct));
+      else if(m.type === 'loaded'){ nReady = true; engineOn = true; store.set('ct_nready', true); nBar(null); nUI(); res(); }
+      else if(m.type === 'loadfail') fail(m.error);
+      else if(m.type === 'done' || m.type === 'fail'){
+        const j = busy; busy = null;
+        if(j && j.id === m.id){ m.type === 'done' ? j.res(new Blob([m.buf], {type: 'audio/wav'})) : j.rej(new Error(m.error)); }
+        pump();
       }
-    });
-    ttsModel = m; nReady = true; store.set('ct_nready', true);
-    nBar(null); nUI();
-    return m;
-  })().catch(e => {
-    ttsLoading = null; nBar(null);
-    nStatus('Could not load the natural voice (' + (e && e.message || 'network error') + '). Check your internet and try again.');
-    throw e;
+    };
+    worker.postMessage({type: 'load'});
   });
-  return ttsLoading;
+  return engineP;
 }
-const nKey = t => nVoice + '|' + NSPEED + '|' + t;
-// Make (or reuse) natural voice audio for a line. Runs one at a time.
-function neuralAudio(text){
-  const key = nKey(text);
-  const job = genChain.then(async () => {
-    const hit = await db.get(key, 'tts');
-    if(hit) return hit;
-    const m = await loadModel();
-    const audio = await m.generate(text, { voice: nVoice, speed: NSPEED });
-    const blob = audio.toBlob();
-    try{ await db.set(key, blob, 'tts'); }catch(e){}
-    return blob;
-  });
-  genChain = job.catch(() => {});
-  return job;
+// Jobs you tap on jump ahead of background preparation
+function pump(){
+  if(busy || !queue.length || !worker) return;
+  queue.sort((a, b) => b.prio - a.prio);
+  busy = queue.shift();
+  worker.postMessage({type: 'gen', id: busy.id, text: busy.text, voice: busy.voice, speed: NSPEED});
+}
+function generate(text, voice, prio){
+  return engine().then(() => new Promise((res, rej) => { queue.push({id: ++jobId, text, voice, prio, res, rej}); pump(); }));
+}
+// Get natural voice audio for a line: built in pack first, then saved copy, then the engine
+async function neuralClip(text, prio){
+  const v = nVoice, key = v + '|' + NSPEED + '|' + text;
+  const pack = await loadPack(v);
+  if(pack && pack.clips && pack.clips[text]) return new Blob([b64ToBuf(pack.clips[text])], {type: pack.mime || 'audio/mpeg'});
+  const hit = await db.get(key, 'tts');
+  if(hit) return hit;
+  if(!nReady && !engineOn) throw new Error('needs-engine');
+  const blob = await generate(text, v, prio);
+  try{ await db.set(key, blob, 'tts'); }catch(e){}
+  return blob;
 }
 $('#nEnable').onclick = async () => {
-  initAudio();
+  unlockAudio();
   try{
-    await loadModel();
-    useNeural = true; store.set('ct_useneural', true); $('#useNeural').checked = true;
-    toast('Natural voice ready'); speak(current());
+    await engine();
+    useNeural = true; store.set('ct_useneural2', true); $('#useNeural').checked = true;
+    toast('Voice engine ready');
   }catch(e){}
 };
-$('#nVoice').onchange = e => { nVoice = e.target.value; store.set('ct_nvoice', nVoice); };
-$('#nPreview').onclick = async () => {
-  initAudio();
-  const sample = 'Hello. Take a slow, deep breath. You are calm, and you are safe.';
+$('#nVoice').onchange = e => { nVoice = e.target.value; store.set('ct_nvoice', nVoice); nUI(); loadPack(nVoice); };
+$('#nPreview').onclick = () => {
+  unlockAudio();
   const was = useNeural; useNeural = true;
-  speak(sample);
+  speak(AFF[0]);
   useNeural = was;
 };
-$('#useNeural').onchange = e => {
-  useNeural = e.target.checked; store.set('ct_useneural', useNeural);
-  if(useNeural && !ttsModel) loadModel().catch(() => {});
-};
+$('#useNeural').onchange = e => { useNeural = e.target.checked; store.set('ct_useneural2', useNeural); };
 $('#nPrepare').onclick = async () => {
   const list = all(); let done = 0;
   $('#nPrepare').disabled = true; nBar(0);
   for(const t of list){
-    try{ await neuralAudio(t); }catch(e){ break; }
+    try{ await neuralClip(t, 0); }catch(e){ break; }
     done++; nBar(Math.round(done / list.length * 100));
-    nStatus(`Preparing affirmations… ${done} of ${list.length}`);
+    nStatus(`Preparing affirmations… ${done} of ${list.length} (you can keep using the app)`);
   }
   nBar(null); $('#nPrepare').disabled = false;
   nStatus(`✓ ${done} affirmations ready in the ${$('#nVoice').selectedOptions[0].textContent.split('·')[0].trim()} voice, saved for offline use.`);
 };
 nUI();
-// If the voice was downloaded before, load it quietly in the background
-if(useNeural && nReady) setTimeout(() => loadModel().catch(() => {}), 1500);
+if(useNeural) loadPack(nVoice);
+
+// Phones only allow sound that starts from a tap. Unlock audio on the first touch,
+// and let iPhone play sound even when the silent switch is on.
+try{ if(navigator.audioSession) navigator.audioSession.type = 'playback'; }catch(e){}
+function unlockAudio(){
+  try{
+    initAudio();
+    const b = ctx.createBuffer(1, 1, 22050), s = ctx.createBufferSource();
+    s.buffer = b; s.connect(ctx.destination); s.start(0);
+  }catch(e){}
+  if(hasSpeech && !unlockAudio.done){
+    unlockAudio.done = true;
+    try{ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); }catch(e){}
+  }
+}
+['pointerdown', 'touchend', 'keydown'].forEach(ev => document.addEventListener(ev, unlockAudio, {passive: true}));
 let recorded = new Set();
 let useMine = store.get('ct_usemine', true);
 $('#useMine').checked = useMine;
@@ -596,29 +651,40 @@ function speak(text, onend, forceMine){
     return;
   }
   if(useNeural && !forceMine){
-    neuralAudio(text).then(blob => {
+    const slow = setTimeout(() => { if(id === speakId) nStatus('Creating the natural voice for this line… first time only'); }, 900);
+    neuralClip(text, 2).then(blob => {
+      clearTimeout(slow);
       if(id !== speakId) return;
+      if(!$('#nPrepare').disabled) nUI();
       playBlob(blob, id, finish, () => deviceVoice(text, id, finish));
-    }).catch(() => { if(id === speakId) deviceVoice(text, id, finish); });
+    }).catch(e => {
+      clearTimeout(slow);
+      if(id !== speakId) return;
+      if(e && e.message === 'needs-engine') nStatus('This line is not built in, so the device voice is used. Tap "Download voice engine" to hear your own affirmations in the natural voice.');
+      deviceVoice(text, id, finish);
+    });
     return;
   }
   deviceVoice(text, id, finish);
 }
-// Play a voice clip with a soft touch of room echo; background sounds dip while it plays
-function playBlob(blob, id, finish, fallback){
-  const url = URL.createObjectURL(blob), a = new Audio(url);
-  curAudio = a; duck(true);
+// Play a voice clip through Web Audio (works on iPhone and Android after the first tap),
+// with a soft touch of room echo; background sounds dip while it plays
+async function playBlob(blob, id, finish, fallback){
   try{
     initAudio();
+    if(ctx.state !== 'running') await ctx.resume();
+    const buf = await ctx.decodeAudioData(await blob.arrayBuffer());
+    if(id !== speakId) return;
     if(!playBlob.bus){
-      playBlob.bus = ctx.createGain(); playBlob.bus.gain.value = 1; playBlob.bus.connect(ctx.destination);
+      playBlob.bus = ctx.createGain(); playBlob.bus.gain.value = 1.15; playBlob.bus.connect(ctx.destination);
       const send = ctx.createGain(); send.gain.value = 0.18; playBlob.bus.connect(send).connect(reverb);
     }
-    ctx.createMediaElementSource(a).connect(playBlob.bus);
-  }catch(e){}
-  a.onended = () => { URL.revokeObjectURL(url); finish(); };
-  a.onerror = () => { URL.revokeObjectURL(url); fallback(); };
-  a.play().catch(() => { URL.revokeObjectURL(url); fallback(); });
+    const src = ctx.createBufferSource(); src.buffer = buf; src.connect(playBlob.bus);
+    curAudio = { pause(){ try{ src.onended = null; src.stop(); }catch(e){} } };
+    duck(true);
+    src.onended = () => finish();
+    src.start();
+  }catch(e){ if(id === speakId) fallback(); }
 }
 function deviceVoice(text, id, finish){
   if(!hasSpeech){ toast('Spoken voice is not supported in this browser'); finish(); return; }
@@ -883,7 +949,7 @@ $('#newAff').addEventListener('keydown', e => { if(e.key === 'Enter') addCustom(
 show(); renderLists(); updateTimer();
 
 /* ---------- Cloud sync: keeps the installed app the same as the website ---------- */
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.4.0';
 const APP_URL = 'https://ranjanielango033wins.github.io/calm-tide/';
 let latestVersion = null;
 function syncState(cls, label, note){
