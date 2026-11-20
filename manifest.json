@@ -1,0 +1,19 @@
+{
+  "name": "Calm Tide: Daily Affirmations",
+  "short_name": "Calm Tide",
+  "description": "Daily positive affirmations spoken aloud, breathing meditation, whale song and calming ocean sounds.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#06132a",
+  "theme_color": "#0b2748",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
