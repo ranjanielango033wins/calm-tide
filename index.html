@@ -99,7 +99,10 @@
   .m-mean{text-align:center;color:var(--muted);font-size:14px;margin:10px 0 14px;line-height:1.5}
   .m-count{text-align:center;font-size:15px;margin-top:10px;color:#f6c9a8;min-height:1.3em;font-weight:600}
   #mCount{border-radius:999px;padding:9px 12px}
-  .lib li{flex-wrap:wrap}
+  .lib li{flex-wrap:nowrap}
+  .lib li button.small{padding:6px 9px}
+  body.on-music .player{display:none}
+  body.on-music .wrap{padding-bottom:70px}
   .lib li .meta{flex:1 1 160px;min-width:0}
   .lib li .meta b{display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .lib li .meta small{color:var(--muted);font-size:12px}
@@ -116,6 +119,27 @@
   .player input[type=range]{margin:4px 0 0}
   .player button{padding:8px 12px}
   body.has-player .wrap{padding-bottom:120px}
+  .tabs{display:flex;gap:6px;justify-content:center;margin:18px auto 0;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:999px;padding:5px;width:max-content}
+  .tabs button{border:none;background:transparent;padding:10px 24px;font-weight:700;font-size:16px}
+  .tabs button.on{background:var(--accent);color:var(--accent-ink)}
+  #tabMusic{max-width:760px;margin:0 auto}
+  .music .now{display:flex;gap:16px;align-items:center}
+  .disc{width:86px;height:86px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:32px;
+    background:radial-gradient(circle,#0b2748 0 16%,#f6c9a8 17% 19%,#1d6f8f 20% 55%,#7fd6d0 56% 100%);box-shadow:0 0 34px rgba(127,214,208,.35)}
+  .disc.spin{animation:spin 7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .now-info{min-width:0;flex:1}
+  .now-info small{color:var(--muted);font-size:12px;display:block}
+  .now-info b{display:block;font-size:21px;margin:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mx-time{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:2px}
+  .mx-ctrl{display:flex;justify-content:center;align-items:center;gap:12px;margin-top:10px}
+  .mx-ctrl button{font-size:20px;width:52px;height:52px;padding:0;border-radius:50%}
+  .mx-ctrl button.big{width:70px;height:70px;font-size:28px}
+  .mx-ctrl button.on{background:rgba(127,214,208,.25);border-color:var(--accent)}
+  .mx-mode{text-align:center;font-size:13px;color:var(--muted);margin:10px 0 0}
+  .lib li{cursor:pointer}
+  .lib li .num{width:22px;text-align:center;color:var(--muted);font-size:13px;flex:none}
+  .lib li input.rename{flex:1;min-width:0}
   .install-help{max-width:520px;margin:12px auto 0;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.07);text-align:left;font-size:14px;line-height:1.6}
   .tip{font-size:13px;color:var(--muted);margin:12px 0 0;line-height:1.5}
   .settings{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
@@ -183,6 +207,12 @@
     <div class="install-help" id="installHelp" hidden></div>
   </header>
 
+  <nav class="tabs" role="tablist">
+    <button id="tabBtnCalm" class="on" role="tab">🌊 Calm</button>
+    <button id="tabBtnMusic" role="tab">🎵 Music <span id="musicCount"></span></button>
+  </nav>
+
+  <div id="tabCalm">
   <div class="cols">
   <div class="main">
   <!-- Today's affirmation -->
@@ -335,18 +365,43 @@
     <div class="mrow" id="mRow"></div>
   </section>
 
-  <!-- My audio library -->
+  <!-- Link to the Music tab -->
   <section class="card" id="library">
-    <h2>🎵 My audio library</h2>
-    <p class="sub">Add songs, chants or videos saved on this device, like your favourite Suprabhatam. They play right here in the app, work offline, and keep playing when your screen is locked.</p>
-    <div class="row" style="justify-content:flex-start;margin-top:12px">
-      <label class="filebtn" style="border-color:var(--accent)">⬆ Add audio or video<input type="file" id="libFile" accept="audio/*,video/*" multiple hidden></label>
-    </div>
-    <ul class="list lib" id="libList"></ul>
-    <p class="tip" id="libTip">💡 Files are kept on this device so they play offline. Add the same file once on each of your devices.</p>
+    <h2>🎵 My songs</h2>
+    <p class="sub">All your uploaded songs, chants and videos live in the Music tab, with a full player, renaming and repeat.</p>
+    <div class="row" style="justify-content:flex-start;margin-top:12px"><button class="primary" id="goMusic">Open Music tab</button></div>
   </section>
 
   </aside>
+  </div>
+  </div>
+
+  <!-- Music tab -->
+  <div id="tabMusic" hidden>
+    <section class="card music">
+      <div class="now">
+        <div class="disc" id="mxDisc">🎵</div>
+        <div class="now-info"><small>Now playing</small><b id="mxTitle">Choose a song below</b><small id="mxSub">No ads, works offline, keeps playing with the screen locked</small></div>
+      </div>
+      <input type="range" id="mxSeek" min="0" max="1000" value="0" aria-label="Position" style="margin-top:16px">
+      <div class="mx-time"><span id="mxCur">0:00</span><span id="mxDur">0:00</span></div>
+      <div class="mx-ctrl">
+        <button id="mxShuffle" aria-label="Shuffle">🔀</button>
+        <button id="mxPrev" aria-label="Previous">⏮</button>
+        <button class="primary big" id="mxPlay" aria-label="Play or pause">▶</button>
+        <button id="mxNext" aria-label="Next">⏭</button>
+        <button id="mxRepeat" aria-label="Repeat">🔁</button>
+      </div>
+      <p class="mx-mode" id="mxMode">Repeat off</p>
+    </section>
+    <section class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">🎶 My songs</h2>
+        <label class="filebtn" style="border-color:var(--accent)">⬆ Add songs<input type="file" id="libFile" accept="audio/*,video/*" multiple hidden></label>
+      </div>
+      <ul class="list lib" id="libList"></ul>
+      <p class="tip" id="libTip">💡 Tap a song to play it. Tap ✏️ to rename. Songs are kept on this device so they play offline. Add the same song once on each of your devices.</p>
+    </section>
   </div>
 
   <footer>Made with care · Sounds are generated live in your browser</footer>
@@ -969,7 +1024,8 @@ if(hasSpeech) speechSynthesis.addEventListener('voiceschanged', loadMantraVoices
 
 /* ---------- My audio library and player (offline, keeps playing with the screen locked) ---------- */
 const audioEl = $('#audioEl');
-let lib = [], curTrack = null, curUrl = null, loopsLeft = 0, loopTotal = 1, loopAll = false;
+let lib = [], curTrack = null, curUrl = null, loopsLeft = 0, loopTotal = 1;
+let repeatMode = store.get('ct_repeat', 'off'), shuffle = store.get('ct_shuffle', false);
 window.calmLibReady = true;
 const fmtSize = b => b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
 const fmtT = s => isFinite(s) ? Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0') : '0:00';
@@ -984,11 +1040,17 @@ function updateMantraAudio(){
   b.hidden = !t;
   if(t) b.textContent = '🎵 Play my audio: ' + t.name;
 }
+let renaming = false;
 function renderLib(){
+  if(renaming) return;   // don't redraw while you are typing a new name
   const ul = $('#libList'); ul.innerHTML = '';
-  if(!lib.length){ ul.innerHTML = '<li class="empty">No audio yet. Tap "Add audio or video" to add your first one.</li>'; return; }
-  lib.forEach(t => {
+  $('#musicCount').textContent = lib.length ? '(' + lib.length + ')' : '';
+  if(!lib.length){ ul.innerHTML = '<li class="empty">No songs yet. Tap "Add songs" to add your first one.</li>'; return; }
+  lib.forEach((t, i) => {
     const li = document.createElement('li'); if(curTrack && curTrack.id === t.id) li.className = 'playing';
+    const num = document.createElement('span'); num.className = 'num'; num.textContent = (curTrack && curTrack.id === t.id && !audioEl.paused) ? '♪' : String(i + 1);
+    li.appendChild(num);
+    li.onclick = e => { if(e.target.closest('button, input')) return; (curTrack && curTrack.id === t.id) ? togglePlay() : playTrack(t, 1); };
     const meta = document.createElement('div'); meta.className = 'meta';
     const b = document.createElement('b'); b.textContent = t.name;
     const s = document.createElement('small'); s.textContent = fmtSize(t.size) + (t.type.startsWith('video') ? ' · video, audio only' : '');
@@ -1004,7 +1066,22 @@ function renderLib(){
       try{ await db.del(t.id, 'media'); }catch(e){}
       toast('Removed'); libLoad();
     };
-    li.append(meta, play, del); ul.appendChild(li);
+    const ren = document.createElement('button'); ren.className = 'small'; ren.textContent = '✏️';
+    ren.setAttribute('aria-label', 'Rename ' + t.name);
+    ren.onclick = () => {
+      const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'rename'; inp.value = t.name; inp.maxLength = 120;
+      meta.replaceWith(inp); inp.focus(); inp.select();
+      let done = false; renaming = true;
+      const save = async () => {
+        if(done) return; done = true; renaming = false;
+        const v = inp.value.trim();
+        if(v && v !== t.name){ t.name = v; try{ await db.set(t.id, t, 'media'); }catch(e){} toast('Renamed'); if(curTrack && curTrack.id === t.id) showNow(); }
+        renderLib(); updateMantraAudio();
+      };
+      inp.onkeydown = e => { if(e.key === 'Enter') save(); if(e.key === 'Escape'){ done = true; renaming = false; renderLib(); } };
+      inp.onblur = save;
+    };
+    li.append(meta, play, ren, del); ul.appendChild(li);
   });
 }
 async function addFiles(files, mantraName){
@@ -1023,7 +1100,7 @@ $('#libFile').onchange = e => { addFiles([...e.target.files]); e.target.value = 
 $('#topFile').onchange = async e => {
   const files = [...e.target.files]; e.target.value = '';
   await addFiles(files);
-  $('#library').scrollIntoView({behavior: 'smooth', block: 'start'});
+  showTab('music');
 };
 $('#mFile').onchange = e => { addFiles([...e.target.files], MANTRAS[mIdx].name); e.target.value = ''; };
 $('#mMyPlay').onclick = () => { const t = mantraTrack(); if(t) playTrack(t, +$('#mCount').value); };
@@ -1036,7 +1113,7 @@ function playTrack(t, times){
   audioEl.src = curUrl; audioEl.currentTime = 0;
   audioEl.play().catch(() => toast('Tap play to start'));
   $('#player').hidden = false; document.body.classList.add('has-player');
-  $('#pTitle').textContent = t.name;
+  showNow();
   if('mediaSession' in navigator){
     try{
       navigator.mediaSession.metadata = new MediaMetadata({ title: t.name, artist: 'Calm Tide', album: t.mantra || 'My audio library',
@@ -1047,6 +1124,8 @@ function playTrack(t, times){
       navigator.mediaSession.setActionHandler('seekto', d => { audioEl.currentTime = d.seekTime; });
       navigator.mediaSession.setActionHandler('seekbackward', () => { audioEl.currentTime = Math.max(0, audioEl.currentTime - 10); });
       navigator.mediaSession.setActionHandler('seekforward', () => { audioEl.currentTime = Math.min(audioEl.duration || 0, audioEl.currentTime + 10); });
+      navigator.mediaSession.setActionHandler('nexttrack', () => goNext(true));
+      navigator.mediaSession.setActionHandler('previoustrack', goPrev);
     }catch(e){}
   }
   updatePlayer(); renderLib();
@@ -1060,9 +1139,17 @@ function closePlayer(){
 }
 function updatePlayer(){
   $('#pPlay').textContent = audioEl.paused ? '▶' : '⏸';
-  $('#pLoop').classList.toggle('on', loopAll);
+  $('#mxPlay').textContent = audioEl.paused ? '▶' : '⏸';
+  $('#mxDisc').classList.toggle('spin', !!curTrack && !audioEl.paused);
+  const icon = repeatMode === 'one' ? '🔂' : '🔁';
+  $('#pLoop').textContent = icon; $('#mxRepeat').textContent = icon;
+  $('#pLoop').classList.toggle('on', repeatMode !== 'off'); $('#mxRepeat').classList.toggle('on', repeatMode !== 'off');
+  $('#mxShuffle').classList.toggle('on', shuffle);
+  $('#mxMode').textContent = (repeatMode === 'one' ? 'Repeating this song' : repeatMode === 'all' ? 'Repeating all songs' : 'Repeat off') + (shuffle ? ' · Shuffle on' : '');
   const d = audioEl.duration, c = audioEl.currentTime;
   $('#pSeek').value = d ? Math.round(c / d * 1000) : 0;
+  $('#mxSeek').value = d ? Math.round(c / d * 1000) : 0;
+  $('#mxCur').textContent = fmtT(c); $('#mxDur').textContent = fmtT(d);
   const rep = loopTotal > 1 ? ` · ${loopTotal - loopsLeft} of ${loopTotal}` : '';
   $('#pTime').textContent = fmtT(c) + ' / ' + fmtT(d) + rep;
   if(curTrack && curTrack.mantra && loopTotal > 1) $('#mCounter').textContent = `🪷 Chant ${loopTotal - loopsLeft} of ${loopTotal}`;
@@ -1071,12 +1158,63 @@ audioEl.addEventListener('timeupdate', updatePlayer);
 audioEl.addEventListener('play', () => { updatePlayer(); renderLib(); if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
 audioEl.addEventListener('pause', () => { updatePlayer(); renderLib(); if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
 audioEl.addEventListener('ended', () => {
-  if(loopsLeft > 0 || loopAll){ if(loopsLeft > 0) loopsLeft--; audioEl.currentTime = 0; audioEl.play(); updatePlayer(); }
-  else { updatePlayer(); if(curTrack && curTrack.mantra && loopTotal > 1) $('#mCounter').textContent = `🙏 ${loopTotal} chants complete`; }
+  if(loopsLeft > 0){ loopsLeft--; audioEl.currentTime = 0; audioEl.play(); updatePlayer(); return; }
+  if(curTrack && curTrack.mantra && loopTotal > 1){ updatePlayer(); $('#mCounter').textContent = `🙏 ${loopTotal} chants complete`; return; }
+  if(repeatMode === 'one'){ audioEl.currentTime = 0; audioEl.play(); return; }
+  if(!goNext(false)) updatePlayer();
 });
+function showNow(){
+  if(!curTrack) return;
+  $('#pTitle').textContent = curTrack.name; $('#mxTitle').textContent = curTrack.name;
+  const i = lib.findIndex(x => x.id === curTrack.id);
+  $('#mxSub').textContent = (i >= 0 ? `Song ${i + 1} of ${lib.length}` : '') + (curTrack.mantra ? ' · ' + curTrack.mantra : '');
+  if('mediaSession' in navigator){ try{ navigator.mediaSession.metadata = new MediaMetadata({ title: curTrack.name, artist: 'Calm Tide', album: curTrack.mantra || 'My songs', artwork: [{ src: 'icon.svg', sizes: '512x512', type: 'image/svg+xml' }] }); }catch(e){} }
+}
+// Move to the next song. manual = tapped Next, so it always wraps around
+function goNext(manual){
+  if(!lib.length) return false;
+  const i = curTrack ? lib.findIndex(x => x.id === curTrack.id) : -1;
+  let n;
+  if(shuffle && lib.length > 1){ do{ n = Math.floor(Math.random() * lib.length); } while(n === i); }
+  else n = i + 1;
+  if(n >= lib.length){ if(manual || repeatMode === 'all') n = 0; else return false; }
+  playTrack(lib[n], 1); return true;
+}
+function goPrev(){
+  if(!lib.length) return;
+  if(audioEl.currentTime > 3){ audioEl.currentTime = 0; return; }
+  const i = curTrack ? lib.findIndex(x => x.id === curTrack.id) : 0;
+  playTrack(lib[(i - 1 + lib.length) % lib.length], 1);
+}
+function cycleRepeat(){
+  repeatMode = repeatMode === 'off' ? 'all' : repeatMode === 'all' ? 'one' : 'off';
+  store.set('ct_repeat', repeatMode); updatePlayer();
+  toast(repeatMode === 'one' ? '🔂 Repeat this song' : repeatMode === 'all' ? '🔁 Repeat all songs' : 'Repeat off');
+}
 audioEl.addEventListener('error', () => { if(curTrack) toast('This file type cannot play here. Try an MP3 or M4A version.'); });
 $('#pPlay').onclick = togglePlay;
-$('#pLoop').onclick = () => { loopAll = !loopAll; updatePlayer(); toast(loopAll ? 'Repeat on' : 'Repeat off'); };
+$('#pLoop').onclick = cycleRepeat;
+$('#mxRepeat').onclick = cycleRepeat;
+$('#mxShuffle').onclick = () => { shuffle = !shuffle; store.set('ct_shuffle', shuffle); updatePlayer(); toast(shuffle ? '🔀 Shuffle on' : 'Shuffle off'); };
+$('#mxPlay').onclick = () => { if(curTrack) togglePlay(); else if(lib.length) playTrack(lib[0], 1); else toast('Add a song first'); };
+$('#mxNext').onclick = () => goNext(true);
+$('#mxPrev').onclick = goPrev;
+$('#mxSeek').oninput = e => { if(audioEl.duration) audioEl.currentTime = e.target.value / 1000 * audioEl.duration; };
+
+/* ---------- Tabs ---------- */
+function showTab(name){
+  const music = name === 'music';
+  $('#tabCalm').hidden = music; $('#tabMusic').hidden = !music;
+  document.body.classList.toggle('on-music', music);
+  $('#tabBtnCalm').classList.toggle('on', !music); $('#tabBtnMusic').classList.toggle('on', music);
+  try{ history.replaceState(null, '', music ? '#music' : location.pathname + location.search); }catch(e){}
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+$('#tabBtnCalm').onclick = () => showTab('calm');
+$('#tabBtnMusic').onclick = () => showTab('music');
+$('#goMusic').onclick = () => showTab('music');
+if(location.hash === '#music') showTab('music');
+updatePlayer();
 $('#pClose').onclick = closePlayer;
 $('#pSeek').oninput = e => { if(audioEl.duration) audioEl.currentTime = e.target.value / 1000 * audioEl.duration; };
 libLoad();
@@ -1343,7 +1481,7 @@ $('#newAff').addEventListener('keydown', e => { if(e.key === 'Enter') addCustom(
 show(); renderLists(); updateTimer();
 
 /* ---------- Cloud sync: keeps the installed app the same as the website ---------- */
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 const APP_URL = 'https://ranjanielango033wins.github.io/calm-tide/';
 let latestVersion = null;
 function syncState(cls, label, note){
