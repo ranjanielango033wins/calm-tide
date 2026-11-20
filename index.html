@@ -156,7 +156,7 @@
     </div>
     <div class="mine neural">
       <div class="mine-head">✨ <b>Natural voice</b> <span class="badge">Human sounding</span>
-        <span id="nStatus" class="sub">Heart and Nicole are built in: calm, human sounding voices that work instantly on any phone.</span></div>
+        <span id="nStatus" class="sub">The Heart voice is built in: a calm, human sounding voice that works instantly on any phone.</span></div>
       <div class="row" style="justify-content:flex-start">
         <select id="nVoice" aria-label="Natural voice">
           <option value="af_heart">💛 Heart · warm and gentle (recommended)</option>
@@ -438,7 +438,7 @@ const db = {
       runs in a background worker, so the app never freezes while it works. */
 const KOKORO_URL = 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js';
 const NSPEED = 0.85;
-const PACKS = { af_heart: 'voices/af_heart.json', af_nicole: 'voices/af_nicole.json' };
+const PACKS = { af_heart: 'voices/af_heart.json' };
 let nVoice = store.get('ct_nvoice', 'af_heart');
 let useNeural = store.get('ct_useneural2', true);   // on by default: built in voices need no download
 let nReady = store.get('ct_nready', false);         // voice engine was downloaded on this device before
@@ -455,7 +455,7 @@ function nUI(){
   if(engineOn) nStatus('✓ Voice engine ready. New lines are made once, then saved on this device.');
   else nStatus(PACKS[nVoice]
     ? '✓ This voice is built in and ready on every device, no download needed. Only your own affirmations need the optional voice engine (about 90 MB, one time).'
-    : 'This voice needs the optional voice engine (about 90 MB, one time). Heart and Nicole are built in and need no download.');
+    : 'This voice needs the optional voice engine (about 90 MB, one time). The Heart voice is built in and needs no download.');
 }
 function loadPack(v){
   if(!PACKS[v]) return Promise.resolve(null);
@@ -959,7 +959,7 @@ $('#newAff').addEventListener('keydown', e => { if(e.key === 'Enter') addCustom(
 show(); renderLists(); updateTimer();
 
 /* ---------- Cloud sync: keeps the installed app the same as the website ---------- */
-const APP_VERSION = '1.4.1';
+const APP_VERSION = '1.4.2';
 const APP_URL = 'https://ranjanielango033wins.github.io/calm-tide/';
 let latestVersion = null;
 function syncState(cls, label, note){
