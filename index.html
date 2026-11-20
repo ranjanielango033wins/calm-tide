@@ -959,7 +959,7 @@ $('#newAff').addEventListener('keydown', e => { if(e.key === 'Enter') addCustom(
 show(); renderLists(); updateTimer();
 
 /* ---------- Cloud sync: keeps the installed app the same as the website ---------- */
-const APP_VERSION = '1.4.2';
+const APP_VERSION = '1.4.3';
 const APP_URL = 'https://ranjanielango033wins.github.io/calm-tide/';
 let latestVersion = null;
 function syncState(cls, label, note){
@@ -975,6 +975,13 @@ async function checkSync(){
     const j = await r.json(); latestVersion = j.version;
     const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
     if(newer(latestVersion, APP_VERSION)){
+      // Install the update by itself, unless you are in the middle of a meditation or a recording
+      const tried = store.get('ct_autoupd', {});
+      const recent = tried.v === latestVersion && Date.now() - tried.t < 10 * 60 * 1000;
+      if(!sess.running && !recording && !recent){
+        store.set('ct_autoupd', {v: latestVersion, t: Date.now()});
+        syncState('update', '⟳ Updating to version ' + latestVersion + '…'); setTimeout(applyUpdate, 800); return;
+      }
       syncState('update', '⟳ Update available · tap to sync', `Website has version ${latestVersion}, this app has ${APP_VERSION}.`);
     } else {
       syncState('ok', '✓ Synced with website', `Version ${APP_VERSION} · last checked ${time}`);
@@ -988,12 +995,13 @@ async function applyUpdate(){
   try{
     const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
     if(reg) await reg.update();
-    if(window.caches){ for(const k of await caches.keys()) await caches.delete(k); }
+    if(window.caches){ for(const k of await caches.keys()) if(k.startsWith('calm-tide')) await caches.delete(k); }
   }catch(e){}
-  location.reload();
+  location.replace(APP_URL + '?v=' + (latestVersion || Date.now()));
 }
 $('#syncBtn').onclick = () => { if(latestVersion && newer(latestVersion, APP_VERSION)) applyUpdate(); else checkSync(); };
 checkSync();
+setInterval(checkSync, 15 * 60 * 1000);   // also check every 15 minutes while the app is open
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') checkSync(); });
 
 /* ---------- Install app button ---------- */
